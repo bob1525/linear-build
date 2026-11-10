@@ -57,4 +57,11 @@ The keyboard flake above. It is a race with hydration, and the test still has th
 
 ## Actions run
 
-Recorded after the workflow for this commit finishes.
+[42863142256](https://github.com/bob1525/linear-build/actions/runs/42863142256) (`push`, head `8c483c5`, 2026-11-10). Workflow conclusion: **success**.
+
+| Job | Conclusion | What it did |
+| --- | --- | --- |
+| Lint, typecheck, and unit tests | success (17:15:57Z–17:16:59Z) | Vitest **77/77** |
+| Playwright | success (17:15:57Z–17:18:57Z) | **46 passed** in 1.5 minutes. No flaky test |
+
+This note is committed on `cursor/linear-issue-tracker-ef1d`.
