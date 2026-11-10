@@ -38,6 +38,30 @@ Issue detail, with Markdown, comments, properties, and activity:
 
 ![Issue detail](docs/screenshots/issue-detail.png)
 
+Board cards mark blocking relationships. ORB-3 blocks ORB-2, so the Todo column shows Blocks and Blocked:
+
+![Board with relation markers](docs/screenshots/board-with-relations.png)
+
+The issue page lists blocked by, blocks, related, the parent, and sub-issues. ORB-1 has ORB-5 as a sub-issue:
+
+![Issue relations and sub-issues](docs/screenshots/issue-detail-relations.png)
+
+Saved views can be named from the current filters and switched later. This one stores Todo, High, and the keyword `cache`:
+
+![Saved views menu](docs/screenshots/saved-views-menu.png)
+
+Selecting more than one issue opens the batch bar for status, assignee, labels, or delete:
+
+![Batch operations](docs/screenshots/batch-operations.png)
+
+If someone else saved the issue first, the later save stops and offers Reload or Overwrite:
+
+![Conflict dialog](docs/screenshots/conflict-dialog.png)
+
+Relay is the drag lab: a long Backlog, one Todo card, an empty In Progress column, and a long Done column:
+
+![Relay drag lab](docs/screenshots/relay-drag-lab.png)
+
 ## Tech stack
 
 - Next.js 15 App Router, React 19, TypeScript
