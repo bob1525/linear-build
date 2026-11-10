@@ -70,4 +70,11 @@ The code this stage documents was already green on [42851852777](https://github.
 
 ## Actions run
 
-Recorded after the workflow for this commit finishes.
+[42853041507](https://github.com/bob1525/linear-build/actions/runs/42853041507) (`push`, head `63c9fe4`, 2026-11-10). Workflow conclusion: **success**.
+
+| Job | Conclusion | What it did |
+| --- | --- | --- |
+| Lint, typecheck, and unit tests | success (16:17:32Z–16:18:07Z) | Vitest **71/71** |
+| Playwright | success (16:17:32Z–16:20:16Z) | **44 passed** in 1.4 minutes. Both `[mobile]` tests, then the original 42 desktop tests |
+
+This note is committed on `cursor/linear-issue-tracker-ef1d`.
