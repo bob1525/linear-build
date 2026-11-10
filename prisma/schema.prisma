@@ -1,0 +1,174 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(cuid())
+  email         String          @unique
+  name          String
+  passwordHash  String
+  createdAt     DateTime        @default(now())
+  sessions      Session[]
+  memberships   ProjectMember[]
+  assigned      Issue[]         @relation("IssueAssignee")
+  createdIssues Issue[]         @relation("IssueCreator")
+  comments      Comment[]
+  activities    Activity[]
+  savedViews    SavedView[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Project {
+  id          String          @id @default(cuid())
+  name        String
+  key         String          @unique
+  description String          @default("")
+  color       String          @default("#5e6ad2")
+  sortOrder   Int             @default(0)
+  createdAt   DateTime        @default(now())
+  members     ProjectMember[]
+  issues      Issue[]
+  labels      Label[]
+  relations   IssueRelation[]
+  savedViews  SavedView[]
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      String   @default("member")
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+model Label {
+  id        String       @id @default(cuid())
+  projectId String
+  name      String
+  color     String
+  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  issues    IssueLabel[]
+
+  @@unique([projectId, name])
+}
+
+model Issue {
+  id          String       @id @default(cuid())
+  projectId   String
+  number      Int
+  title       String
+  description String       @default("")
+  status      String
+  priority    String
+  assigneeId  String?
+  creatorId   String
+  dueDate     DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee    User?        @relation("IssueAssignee", fields: [assigneeId], references: [id])
+  creator     User         @relation("IssueCreator", fields: [creatorId], references: [id])
+  labels      IssueLabel[]
+  comments    Comment[]
+  activities  Activity[]
+  parentId    String?
+  parent      Issue?          @relation("IssueSubIssues", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Issue[]         @relation("IssueSubIssues")
+  blocking    IssueRelation[] @relation("RelationFrom")
+  blockedBy   IssueRelation[] @relation("RelationTo")
+
+  @@unique([projectId, number])
+  @@index([projectId, status])
+  @@index([parentId])
+}
+
+model IssueRelation {
+  id          String   @id @default(cuid())
+  projectId   String
+  type        String
+  fromIssueId String
+  toIssueId   String
+  createdAt   DateTime @default(now())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fromIssue   Issue    @relation("RelationFrom", fields: [fromIssueId], references: [id], onDelete: Cascade)
+  toIssue     Issue    @relation("RelationTo", fields: [toIssueId], references: [id], onDelete: Cascade)
+
+  @@unique([fromIssueId, toIssueId, type])
+  @@index([toIssueId, type])
+  @@index([projectId])
+}
+
+model SavedView {
+  id        String   @id @default(cuid())
+  userId    String
+  projectId String
+  name      String
+  nameKey   String
+  viewType  String
+  sort      String
+  filters   String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId, nameKey])
+  @@index([userId, projectId])
+}
+
+model IssueLabel {
+  issueId String
+  labelId String
+  issue   Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  label   Label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([issueId, labelId])
+  @@index([labelId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  issueId   String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
+
+  @@index([issueId])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  issueId   String
+  actorId   String
+  type      String
+  payload   String   @default("{}")
+  createdAt DateTime @default(now())
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  actor     User     @relation(fields: [actorId], references: [id])
+
+  @@index([issueId, createdAt])
+}

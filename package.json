@@ -1,0 +1,59 @@
+{
+  "name": "northstar",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:setup": "prisma db push && tsx prisma/seed.ts",
+    "db:e2e": "rm -f prisma/e2e.db prisma/e2e.db-journal && DATABASE_URL=file:./e2e.db prisma db push && DATABASE_URL=file:./e2e.db tsx prisma/seed.ts",
+    "db:perf": "rm -f prisma/perf.db prisma/perf.db-journal && DATABASE_URL=file:./perf.db prisma db push && DATABASE_URL=file:./perf.db tsx scripts/seed-perf.ts",
+    "perf": "tsx scripts/run-perf.ts",
+    "start:e2e": "DATABASE_URL=file:./e2e.db next start -p 3100",
+    "test:e2e": "npm run db:e2e && next build && playwright test",
+    "screenshots": "tsx scripts/capture-screenshots.ts",
+    "postinstall": "prisma generate"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@prisma/client": "^6.19.3",
+    "bcryptjs": "^2.4.3",
+    "next": "^15.5.29",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.19.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^15.5.29",
+    "postcss": "^8.5.6",
+    "prisma": "^6.19.3",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
