@@ -12,11 +12,13 @@ npm run perf
 
 That command rebuilds `prisma/perf.db`, runs `next build`, starts the app on http://127.0.0.1:3200, runs `scripts/measure-perf.ts`, and stops the server. It does not replace the demo database. The script signs in as `perf@northstar.dev`, loads `/p/PERF?all=1` three times, times the keyword and High filters, and drags two cards. The printed JSON includes the machine: OS, CPU model, core count, memory, Node version, and the GitHub-hosted runner name when Actions sets it.
 
-`PERF_PORT` changes the port (default 3200). `PERF_BOARD_LOAD_BUDGET_MS` changes the warning line (default 2000). A board-load median under that budget prints `status=ok`. A median that is not under it prints `status=warn` and a `::warning::` line, and the command still exits 0.
+`PERF_PORT` changes the port (default 3200). `PERF_BOARD_LOAD_BUDGET_MS` changes the warning line (default 1200). A board-load median under that budget prints `status=ok`. A median that is not under it prints `status=warn` and a `::warning::` line, and the command still exits 0. The same line prints `dragFrameP50Ms` and `dragFrameMaxMs` for the two drags. Those numbers are recorded only. They are not compared with a budget and they do not warn.
+
+The 1200 ms budget is about twice the measured board-load median. Local and hosted runs of this 500-issue board land around 490–587 ms, and the slowest sample in those runs was 668 ms. The previous 2000 ms line was more than three times the median, so a load that doubled would still have been `status=ok`. 1200 ms sits above that observed range and will warn if the median moves that far. It still does not fail the job.
 
 ## Automation
 
-`.github/workflows/perf.yml` runs `npm run perf` on pull requests and on manual dispatch. The job is the 500-issue measurement, not the unit or end-to-end suite. Crossing the board-load budget logs a warning and leaves the job green. A failed seed, build, or measurement fails the job.
+`.github/workflows/perf.yml` runs `npm run perf` on pull requests and on manual dispatch. The job is the 500-issue measurement, not the unit or end-to-end suite. Crossing the 1200 ms board-load budget logs a warning and leaves the job green. The workflow sets `PERF_BOARD_LOAD_BUDGET_MS` to that same value. A failed seed, build, or measurement fails the job. Drag frame gap is printed and is not a warning.
 
 The first run is [42848735418](https://github.com/bob1525/linear-build/actions/runs/42848735418) (`pull_request`, `6371a65`, 2026-11-10). `ubuntu-latest`, Linux 7.0.0-1019-azure x64, Node v22.23.4, AMD EPYC 7763, 4 cores, 15983 MB. Board-load samples 668, 555, and 587 ms, median **587 ms**, `status=ok` against 2000 ms. Keyword median 338 ms. Priority median 269 ms. The job succeeded.
 

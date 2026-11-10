@@ -3,7 +3,7 @@ import { chromium, type Page } from "playwright";
 import { DEMO_PASSWORD } from "../src/lib/demo-accounts";
 
 const baseURL = process.env.PERF_BASE_URL ?? "http://127.0.0.1:3200";
-const boardLoadBudgetMs = Number(process.env.PERF_BOARD_LOAD_BUDGET_MS ?? "2000");
+const boardLoadBudgetMs = Number(process.env.PERF_BOARD_LOAD_BUDGET_MS ?? "1200");
 
 function median(values: number[]) {
   const sorted = [...values].sort((a, b) => a - b);
@@ -197,7 +197,11 @@ async function main() {
   };
   console.log(JSON.stringify(report, null, 2));
   const status = withinBudget ? "ok" : "warn";
-  console.warn(`PERF boardLoadMedianMs=${boardLoadMedianMs} budgetMs=${boardLoadBudgetMs} status=${status}`);
+  const dragFrameP50Ms = drags.map((item) => item.frameP50Ms).join(",");
+  const dragFrameMaxMs = drags.map((item) => item.frameMaxMs).join(",");
+  console.warn(
+    `PERF boardLoadMedianMs=${boardLoadMedianMs} budgetMs=${boardLoadBudgetMs} status=${status} dragFrameP50Ms=${dragFrameP50Ms} dragFrameMaxMs=${dragFrameMaxMs}`,
+  );
   if (!withinBudget) {
     console.warn(
       `::warning title=Board load::Board load median ${boardLoadMedianMs} ms is not under ${boardLoadBudgetMs} ms.`,
