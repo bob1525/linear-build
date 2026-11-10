@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createCommentAction, updateIssueAction } from "@/lib/actions/issues";
+import { ConflictPrompt } from "@/components/conflict-prompt";
 import { describeActivity } from "@/lib/activity";
 import { PRIORITIES, STATUSES, priorityLabel, statusLabel, type Priority, type Status } from "@/lib/constants";
 import { isOverdue, toDateInputValue } from "@/lib/format";
-import type { ActivityDTO, CommentDTO, IssueCandidate, IssueDTO, IssueRelationGroups, LabelDTO, ProjectSummary, UserDTO } from "@/lib/types";
+import type { ActionResult, ActivityDTO, CommentDTO, IssueCandidate, IssueDTO, IssueRelationGroups, LabelDTO, ProjectSummary, UserDTO } from "@/lib/types";
 import { IssueRelations } from "@/components/issue-relations";
 import { cn } from "@/lib/cn";
 import { Avatar, LabelPill } from "@/components/avatar";
@@ -40,7 +41,44 @@ export function IssueDetail({
   currentUser: UserDTO;
 }) {
   const desktop = useIsDesktop();
+  const router = useRouter();
+  const [baseUpdatedAt, setBaseUpdatedAt] = useState(issue.updatedAt);
+  const [conflict, setConflict] = useState<{ patch: IssuePatch; actorName: string | null } | null>(null);
+  const [overwritePending, setOverwritePending] = useState(false);
+  const [conflictError, setConflictError] = useState<string | null>(null);
   const [extraActivities, setExtraActivities] = useState<ActivityDTO[]>([]);
+
+  useEffect(() => {
+    setBaseUpdatedAt(issue.updatedAt);
+  }, [issue.id, issue.updatedAt]);
+
+  async function commit(patch: IssuePatch, overwrite = false) {
+    const result = await updateIssueAction({ ...patch, baseUpdatedAt, overwrite });
+    if (result.ok) setBaseUpdatedAt(result.data.updatedAt);
+    else if (result.conflict && !overwrite) {
+      setConflictError(null);
+      setConflict({ patch, actorName: result.conflict.actorName });
+    }
+    return result;
+  }
+
+  async function overwriteConflict() {
+    if (!conflict) return;
+    setOverwritePending(true);
+    const result = await commit(conflict.patch, true);
+    setOverwritePending(false);
+    if (!result.ok) {
+      setConflictError(result.error);
+      return;
+    }
+    setConflict(null);
+    router.refresh();
+  }
+
+  function reloadConflict() {
+    setConflict(null);
+    router.refresh();
+  }
   useEffect(() => {
     setExtraActivities([]);
   }, [issue.id]);
@@ -55,11 +93,13 @@ export function IssueDetail({
       labels={labels}
       currentUser={currentUser}
       onActivity={(activity) => setExtraActivities((current) => [activity, ...current])}
+      commit={commit}
     />
   );
   const activity = <ActivityList activities={visibleActivities} />;
 
   return (
+    <>
     <div className="h-full overflow-y-auto">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-6 sm:px-6 lg:flex-row lg:px-8">
         <article className="min-w-0 flex-1">
@@ -70,9 +110,9 @@ export function IssueDetail({
             <span className="text-ink-faint">/</span>
             <span className="font-mono text-ink-faint">{issue.key}</span>
           </p>
-          <TitleEditor issue={issue} />
+          <TitleEditor issue={issue} commit={commit} />
           {!desktop ? <div className="mt-4 rounded-xl border border-line bg-white/[0.02] p-3">{properties}</div> : null}
-          <DescriptionEditor issue={issue} />
+          <DescriptionEditor issue={issue} commit={commit} />
           <IssueRelations
             projectKey={project.key}
             issueId={issue.id}
@@ -82,7 +122,13 @@ export function IssueDetail({
             currentUser={currentUser}
             onActivity={(activity) => setExtraActivities((current) => [activity, ...current])}
           />
-          <CommentSection issueId={issue.id} comments={comments} currentUser={currentUser} onCommented={(activity) => setExtraActivities((current) => [activity, ...current])} />
+          <CommentSection
+            issueId={issue.id}
+            comments={comments}
+            currentUser={currentUser}
+            onCommented={(activity) => setExtraActivities((current) => [activity, ...current])}
+            onVersion={setBaseUpdatedAt}
+          />
           {!desktop ? <div className="mt-8">{activity}</div> : null}
         </article>
         {desktop ? (
@@ -95,15 +141,38 @@ export function IssueDetail({
         ) : null}
       </div>
     </div>
+    {conflict ? (
+      <ConflictPrompt
+        actorName={conflict.actorName}
+        pending={overwritePending}
+        error={conflictError}
+        onReload={reloadConflict}
+        onOverwrite={() => void overwriteConflict()}
+      />
+    ) : null}
+    </>
   );
 }
 
-function TitleEditor({ issue }: { issue: IssueDTO }) {
+type IssuePatch = {
+  issueId: string;
+  title?: string;
+  description?: string;
+  status?: Status;
+  priority?: Priority;
+  assigneeId?: string | null;
+  dueDate?: string | null;
+  labelIds?: string[];
+};
+
+type Commit = (patch: IssuePatch, overwrite?: boolean) => Promise<ActionResult<{ id: string; updatedAt: string }>>;
+
+function TitleEditor({ issue, commit }: { issue: IssueDTO; commit: Commit }) {
   const router = useRouter();
   const field = useRef<HTMLTextAreaElement>(null);
   const [title, setTitle] = useState(issue.title);
   const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
 
   useEffect(() => setTitle(issue.title), [issue.title]);
 
@@ -114,21 +183,21 @@ function TitleEditor({ issue }: { issue: IssueDTO }) {
     node.style.height = `${node.scrollHeight}px`;
   }, [title]);
 
-  function save() {
+  async function save() {
     const next = title.trim();
     if (!next || next === issue.title) {
       setTitle(issue.title);
       return;
     }
-    startTransition(async () => {
-      const result = await updateIssueAction({ issueId: issue.id, title: next });
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setError(null);
-      router.refresh();
-    });
+    setPending(true);
+    const result = await commit({ issueId: issue.id, title: next });
+    setPending(false);
+    if (!result.ok) {
+      if (!result.conflict) setError(result.error);
+      return;
+    }
+    setError(null);
+    router.refresh();
   }
 
   return (
@@ -162,30 +231,30 @@ function TitleEditor({ issue }: { issue: IssueDTO }) {
   );
 }
 
-function DescriptionEditor({ issue }: { issue: IssueDTO }) {
+function DescriptionEditor({ issue, commit }: { issue: IssueDTO; commit: Commit }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(issue.description);
   const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
 
   useEffect(() => setDraft(issue.description), [issue.description]);
 
-  function save() {
+  async function save() {
     if (draft === issue.description) {
       setEditing(false);
       return;
     }
-    startTransition(async () => {
-      const result = await updateIssueAction({ issueId: issue.id, description: draft });
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setError(null);
-      setEditing(false);
-      router.refresh();
-    });
+    setPending(true);
+    const result = await commit({ issueId: issue.id, description: draft });
+    setPending(false);
+    if (!result.ok) {
+      if (!result.conflict) setError(result.error);
+      return;
+    }
+    setError(null);
+    setEditing(false);
+    router.refresh();
   }
 
   return (
@@ -207,6 +276,7 @@ function DescriptionEditor({ issue }: { issue: IssueDTO }) {
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Add context, steps, or a decision. Markdown works here."
             className="min-h-36"
+            maxLength={20000}
           />
           <div className="mt-2 flex items-center justify-between">
             <p className="text-[11px] text-ink-faint">Markdown supported</p>
@@ -241,11 +311,13 @@ function CommentSection({
   comments,
   currentUser,
   onCommented,
+  onVersion,
 }: {
   issueId: string;
   comments: CommentDTO[];
   currentUser: UserDTO;
   onCommented: (activity: ActivityDTO) => void;
+  onVersion: (updatedAt: string) => void;
 }) {
   const router = useRouter();
   const [body, setBody] = useState("");
@@ -272,6 +344,7 @@ function CommentSection({
       setError(result.error);
       return;
     }
+    onVersion(result.data.updatedAt);
     const createdAt = new Date().toISOString();
     setPendingComments((current) => [
       ...current,
@@ -320,6 +393,7 @@ function CommentSection({
             value={body}
             onChange={(event) => setBody(event.target.value)}
             placeholder="Write a comment… Markdown is supported. ⌘ Enter to post."
+            maxLength={10000}
             onKeyDown={(event) => {
               if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
                 event.preventDefault();
@@ -348,12 +422,14 @@ function Properties({
   labels,
   currentUser,
   onActivity,
+  commit,
 }: {
   issue: IssueDTO;
   members: UserDTO[];
   labels: LabelDTO[];
   currentUser: UserDTO;
   onActivity: (activity: ActivityDTO) => void;
+  commit: Commit;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -376,11 +452,11 @@ function Properties({
     if (patch.status && patch.status !== status) setStatus(patch.status);
     setPending(true);
     setError(null);
-    const result = await updateIssueAction(patch);
+    const result = await commit(patch);
     setPending(false);
     if (!result.ok) {
       if (patch.status) setStatus(previousStatus);
-      setError(result.error);
+      if (!result.conflict) setError(result.error);
       return;
     }
     if (patch.status && patch.status !== previousStatus) {
@@ -404,6 +480,11 @@ function Properties({
   return (
     <section aria-label="Issue properties" className={cn(pending && "opacity-70")}>
       <h2 className="text-[12px] font-medium uppercase tracking-wide text-ink-faint">Properties</h2>
+      {pending ? (
+        <p data-testid="properties-saving" className="mt-1 text-[11px] text-ink-faint">
+          Saving…
+        </p>
+      ) : null}
       {error ? <div className="mt-2"><ErrorNote>{error}</ErrorNote></div> : null}
       <dl className="mt-3 space-y-3">
         <Property label="Status">

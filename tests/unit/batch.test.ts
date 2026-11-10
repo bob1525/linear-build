@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CONFLICT_ERROR } from "@/lib/concurrency";
 import {
   BATCH_ERRORS,
   applyBatchOp,
@@ -43,6 +44,20 @@ describe("batch status", () => {
     expect(plan.succeeded).toEqual([{ id: "a", key: "ORB-1" }]);
     expect(plan.failed).toEqual([{ id: "missing", key: null, error: BATCH_ERRORS.missing }]);
     expect(batchSummary(plan)).toBe("1 succeeded, 1 failed");
+  });
+
+  it("holds back a stale issue and still plans the one that matches", () => {
+    const stale = issue({ updatedAt: "2026-01-02T00:00:00.000Z", baseUpdatedAt: "2026-01-01T00:00:00.000Z" });
+    const fresh = issue({
+      id: "b",
+      key: "ORB-2",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      baseUpdatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    const plan = planBatch([stale, fresh], ["a", "b"], { type: "status", status: "done" }, context);
+    expect(plan.succeeded).toEqual([{ id: "b", key: "ORB-2" }]);
+    expect(plan.failed).toEqual([{ id: "a", key: "ORB-1", error: CONFLICT_ERROR }]);
+    expect(stale.status).toBe("todo");
   });
 
   it("rejects an invalid status without marking those issues updated", () => {

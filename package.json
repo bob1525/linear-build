@@ -18,6 +18,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:setup": "prisma db push && tsx prisma/seed.ts",
     "db:e2e": "rm -f prisma/e2e.db prisma/e2e.db-journal && DATABASE_URL=file:./e2e.db prisma db push && DATABASE_URL=file:./e2e.db tsx prisma/seed.ts",
+    "db:perf": "rm -f prisma/perf.db prisma/perf.db-journal && DATABASE_URL=file:./perf.db prisma db push && DATABASE_URL=file:./perf.db tsx scripts/seed-perf.ts",
     "start:e2e": "DATABASE_URL=file:./e2e.db next start -p 3100",
     "test:e2e": "npm run db:e2e && next build && playwright test",
     "screenshots": "tsx scripts/capture-screenshots.ts",

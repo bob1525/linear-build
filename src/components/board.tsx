@@ -10,6 +10,7 @@ import type { IssueSort } from "@/lib/view-state";
 import { kanbanCollision } from "@/lib/kanban-collision";
 import type { IssueDTO } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { ConflictPrompt } from "@/components/conflict-prompt";
 import { IssueCard } from "@/components/issue-card";
 import { StatusIcon } from "@/components/icons";
 
@@ -32,6 +33,8 @@ export function Board({
   const [items, setItems] = useState(issues);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<{ issueId: string; status: Status; actorName: string | null } | null>(null);
+  const [overwritePending, setOverwritePending] = useState(false);
   const itemsRef = useRef(items);
   const pendingRef = useRef(new Map<string, PendingMove>());
   const ticketRef = useRef(0);
@@ -46,6 +49,27 @@ export function Board({
     setItems(issues);
   }
   itemsRef.current = items;
+
+  async function keepMove() {
+    if (!conflict) return;
+    const move = conflict;
+    setOverwritePending(true);
+    const result = await updateIssueAction({ issueId: move.issueId, status: move.status, overwrite: true });
+    setOverwritePending(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setItems((currentItems) =>
+      currentItems.map((issue) =>
+        issue.id === move.issueId ? { ...issue, status: move.status, updatedAt: result.data.updatedAt } : issue,
+      ),
+    );
+    setConflict(null);
+    setError(null);
+    wantsRefreshRef.current = true;
+    maybeRefresh();
+  }
 
   function maybeRefresh() {
     if (draggingRef.current || pendingRef.current.size > 0) {
@@ -82,7 +106,7 @@ export function Board({
       return;
     }
     const current = itemsRef.current.find((issue) => issue.id === issueId);
-    if (!current || current.status === nextStatus) {
+    if (!current || current.status === nextStatus || !isStatus(nextStatus)) {
       maybeRefresh();
       return;
     }
@@ -97,17 +121,27 @@ export function Board({
     chainRef.current = chainRef.current
       .catch(() => undefined)
       .then(async () => {
-        const result = await updateIssueAction({ issueId, status: nextStatus });
+        const result = await updateIssueAction({ issueId, status: nextStatus, baseUpdatedAt: current.updatedAt });
         const pending = pendingRef.current.get(issueId);
         if (!pending || pending.ticket !== ticket) return;
         pendingRef.current.delete(issueId);
         if (!result.ok) {
           setItems((currentItems) => currentItems.map((issue) => (issue.id === issueId ? { ...issue, status: previous } : issue)));
-          setError(result.error);
+          if (result.conflict) {
+            setError(null);
+            setConflict({ issueId, status: nextStatus, actorName: result.conflict.actorName });
+          } else {
+            setError(result.error);
+          }
           maybeRefresh();
           return;
         }
         setError(null);
+        setItems((currentItems) =>
+          currentItems.map((issue) =>
+            issue.id === issueId ? { ...issue, status: nextStatus, updatedAt: result.data.updatedAt } : issue,
+          ),
+        );
         wantsRefreshRef.current = true;
         maybeRefresh();
       });
@@ -148,6 +182,18 @@ export function Board({
           ))}
         </div>
       </div>
+      {conflict ? (
+        <ConflictPrompt
+          actorName={conflict.actorName}
+          pending={overwritePending}
+          onReload={() => {
+            setConflict(null);
+            wantsRefreshRef.current = true;
+            maybeRefresh();
+          }}
+          onOverwrite={() => void keepMove()}
+        />
+      ) : null}
       <DragOverlay dropAnimation={null}>
         {active ? (
           <div className="w-[260px] opacity-80">

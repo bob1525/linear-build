@@ -13,6 +13,7 @@ import { cn } from "@/lib/cn";
 import { Avatar, LabelPill } from "@/components/avatar";
 import { BlockingMarks } from "@/components/blocking-marks";
 import { PriorityIcon, StatusIcon } from "@/components/icons";
+import { ConflictPrompt } from "@/components/conflict-prompt";
 import { Menu, MenuOption } from "@/components/menu";
 
 export function IssueList({
@@ -28,11 +29,40 @@ export function IssueList({
   selectedIds?: string[];
   onSelect?: (id: string, mods: { shift: boolean; meta: boolean }) => void;
 }) {
+  const router = useRouter();
   const sorted = [...issues].sort((left, right) => compareIssues(left, right, sort));
   const [error, setError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<{ issueId: string; status: Status; actorName: string | null } | null>(null);
+  const [overwritePending, setOverwritePending] = useState(false);
+
+  async function overwrite() {
+    if (!conflict) return;
+    const move = conflict;
+    setOverwritePending(true);
+    const result = await updateIssueAction({ issueId: move.issueId, status: move.status, overwrite: true });
+    setOverwritePending(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setConflict(null);
+    setError(null);
+    router.refresh();
+  }
 
   return (
     <div className="h-full overflow-auto">
+      {conflict ? (
+        <ConflictPrompt
+          actorName={conflict.actorName}
+          pending={overwritePending}
+          onReload={() => {
+            setConflict(null);
+            router.refresh();
+          }}
+          onOverwrite={() => void overwrite()}
+        />
+      ) : null}
       {error ? (
         <p role="alert" className="mx-4 mt-3 rounded-md border border-red-400/20 bg-red-500/10 px-3 py-2 text-[12px] text-red-200">
           {error}
@@ -102,7 +132,7 @@ export function IssueList({
                 </Link>
                 <BlockingMarks issue={issue} />
               </div>
-              <StatusControl issue={issue} onError={setError} />
+                <StatusControl issue={issue} onError={setError} onConflict={setConflict} />
               <div className="flex min-w-0 gap-1 overflow-hidden">
                 {issue.labels.slice(0, 2).map((label) => (
                   <LabelPill key={label.id} name={label.name} color={label.color} />
@@ -122,32 +152,48 @@ export function IssueList({
   );
 }
 
-function StatusControl({ issue, onError }: { issue: IssueDTO; onError: (message: string | null) => void }) {
+function StatusControl({
+  issue,
+  onError,
+  onConflict,
+}: {
+  issue: IssueDTO;
+  onError: (message: string | null) => void;
+  onConflict: (conflict: { issueId: string; status: Status; actorName: string | null }) => void;
+}) {
   const router = useRouter();
   const [status, setStatus] = useState(issue.status);
+  const [version, setVersion] = useState(issue.updatedAt);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
     setStatus(issue.status);
   }, [issue.status]);
 
+  useEffect(() => {
+    setVersion(issue.updatedAt);
+  }, [issue.updatedAt]);
+
   function choose(next: Status) {
     if (next === status) return;
     const previous = status;
     setStatus(next);
     startTransition(async () => {
-      const result = await updateIssueAction({ issueId: issue.id, status: next });
+      const result = await updateIssueAction({ issueId: issue.id, status: next, baseUpdatedAt: version });
       if (!result.ok) {
         setStatus(previous);
-        onError(result.error);
+        if (result.conflict) onConflict({ issueId: issue.id, status: next, actorName: result.conflict.actorName });
+        else onError(result.error);
         return;
       }
+      setVersion(result.data.updatedAt);
       onError(null);
       router.refresh();
     });
   }
 
   return (
+    <span className="inline-flex items-center gap-1">
     <Menu
       label={`Change status for ${issue.key}`}
       testId={`status-${issue.key}`}
@@ -167,5 +213,11 @@ function StatusControl({ issue, onError }: { issue: IssueDTO; onError: (message:
         </MenuOption>
       ))}
     </Menu>
+    {pending ? (
+      <span data-testid={`status-saving-${issue.key}`} className="text-[11px] text-ink-faint">
+        Saving…
+      </span>
+    ) : null}
+    </span>
   );
 }

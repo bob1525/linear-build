@@ -89,7 +89,14 @@ export type ProjectSummary = {
   labels: LabelDTO[];
 };
 
-export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
+export type ConflictDetails = {
+  updatedAt: string;
+  actorName: string | null;
+};
+
+export type ActionResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: string; conflict?: ConflictDetails };
 
 export function ok<T>(data: T): ActionResult<T> {
   return { ok: true, data };
@@ -97,4 +104,8 @@ export function ok<T>(data: T): ActionResult<T> {
 
 export function fail(error: string): ActionResult<never> {
   return { ok: false, error };
+}
+
+export function conflict(error: string, details: ConflictDetails): ActionResult<never> {
+  return { ok: false, error, conflict: details };
 }

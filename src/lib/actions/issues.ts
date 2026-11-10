@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
+import { conflictCopy, shouldRejectStaleWrite } from "@/lib/concurrency";
 import { prisma } from "@/lib/db";
 import { publicUserSelect } from "@/lib/dto";
 import { formatIssueKey, parseDueDateInput } from "@/lib/format";
-import { fail, ok, type ActionResult } from "@/lib/types";
+import { conflict, fail, ok, type ActionResult } from "@/lib/types";
 import { commentSchema, createIssueSchema, firstIssue, updateIssueSchema } from "@/lib/validators";
 
 function revalidateIssuePaths(projectKey: string, number?: number) {
@@ -80,7 +81,7 @@ export async function createIssueAction(input: unknown): Promise<ActionResult<{ 
   }
 }
 
-export async function updateIssueAction(input: unknown): Promise<ActionResult<{ id: string }>> {
+export async function updateIssueAction(input: unknown): Promise<ActionResult<{ id: string; updatedAt: string }>> {
   const user = await getCurrentUser();
   if (!user) return fail("You need to sign in again");
 
@@ -202,14 +203,36 @@ export async function updateIssueAction(input: unknown): Promise<ActionResult<{ 
     }
   }
 
-  if (Object.keys(data).length === 0 && !replaceLabels) return ok({ id: existing.id });
+  if (Object.keys(data).length === 0 && !replaceLabels) {
+    return ok({ id: existing.id, updatedAt: existing.updatedAt.toISOString() });
+  }
+
+  if (
+    shouldRejectStaleWrite({
+      baseUpdatedAt: parsed.data.baseUpdatedAt,
+      overwrite: parsed.data.overwrite,
+      currentUpdatedAt: existing.updatedAt,
+    })
+  ) {
+    const latest = await prisma.activity.findFirst({
+      where: { issueId: existing.id },
+      orderBy: { createdAt: "desc" },
+      include: { actor: { select: { name: true } } },
+    });
+    const actorName = latest?.actor.name ?? null;
+    return conflict(conflictCopy(actorName), {
+      updatedAt: existing.updatedAt.toISOString(),
+      actorName,
+    });
+  }
 
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.issue.update({
-          where: { id: existing.id },
-          data: { ...data, updatedAt: new Date() },
-        });
+    const updatedAt = await prisma.$transaction(async (tx) => {
+      const saved = await tx.issue.update({
+        where: { id: existing.id },
+        data: { ...data, updatedAt: new Date() },
+        select: { updatedAt: true },
+      });
       if (replaceLabels && parsed.data.labelIds) {
         const nextIds = [...new Set(parsed.data.labelIds)];
         await tx.issueLabel.deleteMany({ where: { issueId: existing.id } });
@@ -229,17 +252,17 @@ export async function updateIssueAction(input: unknown): Promise<ActionResult<{ 
           })),
         });
       }
+      return saved.updatedAt;
     });
+    revalidateIssuePaths(existing.project.key, existing.number);
+    return ok({ id: existing.id, updatedAt: updatedAt.toISOString() });
   } catch (error) {
     console.error(error);
     return fail("Could not update the issue. Please try again.");
   }
-
-  revalidateIssuePaths(existing.project.key, existing.number);
-  return ok({ id: existing.id });
 }
 
-export async function createCommentAction(input: unknown): Promise<ActionResult<{ id: string }>> {
+export async function createCommentAction(input: unknown): Promise<ActionResult<{ id: string; updatedAt: string }>> {
   const user = await getCurrentUser();
   if (!user) return fail("You need to sign in again");
 
@@ -265,11 +288,15 @@ export async function createCommentAction(input: unknown): Promise<ActionResult<
       await tx.activity.create({
         data: { issueId: issue.id, actorId: user.id, type: "commented", payload: "{}" },
       });
-      await tx.issue.update({ where: { id: issue.id }, data: { updatedAt: new Date() } });
-      return created;
+      const saved = await tx.issue.update({
+        where: { id: issue.id },
+        data: { updatedAt: new Date() },
+        select: { updatedAt: true },
+      });
+      return { id: created.id, updatedAt: saved.updatedAt.toISOString() };
     });
     revalidateIssuePaths(issue.project.key, issue.number);
-    return ok({ id: comment.id });
+    return ok(comment);
   } catch (error) {
     console.error(error);
     return fail("Could not post the comment. Please try again.");

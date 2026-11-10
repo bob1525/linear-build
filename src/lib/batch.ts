@@ -1,3 +1,4 @@
+import { CONFLICT_ERROR, sameVersion } from "@/lib/concurrency";
 import { isStatus, type Status } from "@/lib/constants";
 
 export type BatchIssue = {
@@ -6,6 +7,8 @@ export type BatchIssue = {
   status: string;
   assigneeId: string | null;
   labelIds: string[];
+  updatedAt?: string;
+  baseUpdatedAt?: string | null;
 };
 
 export type BatchOp =
@@ -44,6 +47,10 @@ export function planBatch(
     const issue = byId.get(id);
     if (!issue) {
       failed.push({ id, key: null, error: BATCH_ERRORS.missing });
+      continue;
+    }
+    if (issue.baseUpdatedAt && issue.updatedAt && !sameVersion(issue.baseUpdatedAt, issue.updatedAt)) {
+      failed.push({ id: issue.id, key: issue.key, error: CONFLICT_ERROR });
       continue;
     }
     const error = rejection(op, context);

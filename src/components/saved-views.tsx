@@ -178,6 +178,11 @@ export function SavedViews({
               {error}
             </p>
           ) : null}
+          {pending ? (
+            <p data-testid="view-pending" className="mt-2 text-[12px] text-ink-faint">
+              Working…
+            </p>
+          ) : null}
           {shown.length === 0 ? <p className="mt-3 px-1 text-[12px] text-ink-faint">No saved views yet.</p> : null}
           <ul className="mt-2 space-y-1">
             {shown.map((view) => {
@@ -199,7 +204,7 @@ export function SavedViews({
                         onChange={(event) => setDraft(event.target.value)}
                         className="h-7 min-w-0 flex-1 rounded-md border border-line bg-black/25 px-2 text-[12px] outline-none"
                       />
-                      <button type="submit" className="h-7 rounded-md px-2 text-[12px] text-ink hover:bg-white/10">
+                      <button type="submit" disabled={pending} className="h-7 rounded-md px-2 text-[12px] text-ink hover:bg-white/10 disabled:opacity-50">
                         Save name
                       </button>
                     </form>
@@ -215,6 +220,7 @@ export function SavedViews({
                     <button
                       type="button"
                       aria-label={`Rename ${view.name}`}
+                      disabled={pending}
                       onClick={() => {
                         setEditingId(view.id);
                         setDraft(view.name);
@@ -226,6 +232,7 @@ export function SavedViews({
                     <button
                       type="button"
                       aria-label={view.isDefault ? `Clear default ${view.name}` : `Set default ${view.name}`}
+                      disabled={pending}
                       onClick={() => void makeDefault(view)}
                       className="rounded px-1.5 py-0.5 text-[11px] text-ink-muted hover:bg-white/10 hover:text-ink"
                     >
@@ -234,6 +241,7 @@ export function SavedViews({
                     <button
                       type="button"
                       aria-label={`Delete ${view.name}`}
+                      disabled={pending}
                       onClick={() => void remove(view.id)}
                       className="rounded px-1.5 py-0.5 text-[11px] text-ink-muted hover:bg-white/10 hover:text-red-200"
                     >

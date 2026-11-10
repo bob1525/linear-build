@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { batchIssuesAction } from "@/lib/actions/batch";
-import { batchSummary, emptySelection, selectAll, selectionFromPointer, type BatchOp, type BatchResult, type SelectionState } from "@/lib/batch";
+import { BATCH_ERRORS, batchSummary, emptySelection, selectAll, selectionFromPointer, type BatchOp, type BatchResult, type SelectionState } from "@/lib/batch";
 import { STATUSES, type Status } from "@/lib/constants";
 import { hasActiveFilters, type IssueFilters } from "@/lib/filters";
 import { compareIssues, groupByStatus } from "@/lib/issue-view";
@@ -92,7 +92,12 @@ export function IssueBrowser({
     setPending(true);
     setProgress(`${deleting ? "Deleting" : "Updating"} ${selected.length} ${selected.length === 1 ? "issue" : "issues"}…`);
     setResult(null);
-    const response = await batchIssuesAction({ projectKey, issueIds: selected, op });
+    const versions: Record<string, string> = {};
+    for (const id of selected) {
+      const issue = ordered.find((item) => item.id === id);
+      if (issue) versions[id] = issue.updatedAt;
+    }
+    const response = await batchIssuesAction({ projectKey, issueIds: selected, op, versions });
     setPending(false);
     setProgress(null);
     if (!response.ok) {
@@ -103,7 +108,10 @@ export function IssueBrowser({
     setVerb(deleting ? "Deleted" : "Updated");
     setResult(response.data);
     const done = new Set(response.data.succeeded.map((item) => item.id));
-    if (deleting) setRemovedIds((current) => [...new Set([...current, ...done])]);
+    const gone = response.data.failed.filter((item) => item.error === BATCH_ERRORS.missing).map((item) => item.id);
+    if (deleting || gone.length > 0) {
+      setRemovedIds((current) => [...new Set([...current, ...(deleting ? done : []), ...gone])]);
+    }
     if (op.type === "status") {
       const status = op.status;
       setStatusOverrides((current) => {
@@ -121,7 +129,7 @@ export function IssueBrowser({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line px-3 py-1.5 sm:px-4">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line px-3 py-1.5 sm:px-4" aria-busy={pending}>
         <button
           type="button"
           data-testid="select-all"

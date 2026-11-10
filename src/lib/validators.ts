@@ -46,6 +46,8 @@ export const updateIssueSchema = z.object({
   assigneeId: z.string().nullable().optional(),
   dueDate: z.string().nullable().optional(),
   labelIds: z.array(z.string()).max(20).optional(),
+  baseUpdatedAt: z.string().min(1).max(40).optional(),
+  overwrite: z.boolean().optional(),
 });
 
 export const commentSchema = z.object({
@@ -94,6 +96,7 @@ export const batchSchema = z.object({
   projectKey: z.string().trim().min(1),
   issueIds: z.array(z.string().min(1)).min(1, "Select at least one issue").max(100, "Select 100 issues or fewer"),
   op: batchOpSchema,
+  versions: z.record(z.string(), z.string()).optional(),
 });
 
 export const relationKindSchema = z.enum(["blocks", "blocked_by", "related", "sub_issue"]);

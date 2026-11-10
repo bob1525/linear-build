@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import { useDraggable } from "@dnd-kit/core";
 import type { IssueDTO } from "@/lib/types";
@@ -53,7 +54,7 @@ function DraggableCard({
   );
 }
 
-function CardFace({
+const CardFace = memo(function CardFace({
   issue,
   projectKey,
   overlay = false,
@@ -149,7 +150,14 @@ function CardFace({
       </div>
     </article>
   );
-}
+}, (prev, next) =>
+  prev.issue === next.issue &&
+  prev.projectKey === next.projectKey &&
+  prev.overlay === next.overlay &&
+  prev.placeholder === next.placeholder &&
+  prev.selected === next.selected &&
+  prev.onSelect === next.onSelect,
+);
 
 function SelectBox({
   issue,

@@ -41,6 +41,8 @@ export async function batchIssuesAction(input: unknown): Promise<ActionResult<Ba
         assigneeId: row.assigneeId,
         assigneeName: row.assignee?.name ?? null,
         labelIds: row.labels.map((label) => label.labelId),
+        updatedAt: row.updatedAt.toISOString(),
+        baseUpdatedAt: parsed.data.versions?.[row.id],
       },
     ]),
   );

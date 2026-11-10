@@ -129,7 +129,7 @@ export function IssueRelations({
   }
 
   return (
-    <section className="mt-8" aria-label="Relations">
+    <section className="mt-8" aria-label="Relations" aria-busy={pending}>
       <h2 className="text-[12px] font-medium uppercase tracking-wide text-ink-faint">Relations</h2>
       <form className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center" onSubmit={submit}>
         <label className="sr-only" htmlFor="relation-kind">
@@ -174,21 +174,26 @@ export function IssueRelations({
           <ErrorNote>{error}</ErrorNote>
         </div>
       ) : null}
+      {pending ? (
+        <p data-testid="relation-pending" className="mt-2 text-[12px] text-ink-faint">
+          Saving relation…
+        </p>
+      ) : null}
       <div className="mt-4 space-y-4">
-        <RelationList title="Blocked by" testId="relations-blocked-by" links={linksFor("blocked_by", relations.blockedBy)} projectKey={projectKey} onRemove={(link) => void remove("blocked_by", link)} />
-        <RelationList title="Blocks" testId="relations-blocks" links={linksFor("blocks", relations.blocks)} projectKey={projectKey} onRemove={(link) => void remove("blocks", link)} />
-        <RelationList title="Related" testId="relations-related" links={linksFor("related", relations.related)} projectKey={projectKey} onRemove={(link) => void remove("related", link)} />
+        <RelationList title="Blocked by" testId="relations-blocked-by" links={linksFor("blocked_by", relations.blockedBy)} projectKey={projectKey} pending={pending} onRemove={(link) => void remove("blocked_by", link)} />
+        <RelationList title="Blocks" testId="relations-blocks" links={linksFor("blocks", relations.blocks)} projectKey={projectKey} pending={pending} onRemove={(link) => void remove("blocks", link)} />
+        <RelationList title="Related" testId="relations-related" links={linksFor("related", relations.related)} projectKey={projectKey} pending={pending} onRemove={(link) => void remove("related", link)} />
         <div data-testid="relations-parent">
           <h3 className="text-[12px] text-ink-muted">Parent</h3>
           {parent ? (
             <ul className="mt-1.5 space-y-1">
-              <RelationRow link={parent} projectKey={projectKey} removeLabel={`Remove parent ${parent.key}`} onRemove={() => void removeParent(parent)} />
+              <RelationRow link={parent} projectKey={projectKey} pending={pending} removeLabel={`Remove parent ${parent.key}`} onRemove={() => void removeParent(parent)} />
             </ul>
           ) : (
             <p className="mt-1 text-[13px] text-ink-faint">None</p>
           )}
         </div>
-        <RelationList title="Sub-issues" testId="relations-subissues" links={subIssues} projectKey={projectKey} onRemove={(link) => void remove("sub_issue", link)} removePrefix="Remove sub-issue" />
+        <RelationList title="Sub-issues" testId="relations-subissues" links={subIssues} projectKey={projectKey} pending={pending} onRemove={(link) => void remove("sub_issue", link)} removePrefix="Remove sub-issue" />
       </div>
     </section>
   );
@@ -212,6 +217,7 @@ function RelationList({
   projectKey,
   onRemove,
   removePrefix,
+  pending = false,
 }: {
   title: string;
   testId: string;
@@ -219,6 +225,7 @@ function RelationList({
   projectKey: string;
   onRemove: (link: IssueLinkDTO) => void;
   removePrefix?: string;
+  pending?: boolean;
 }) {
   return (
     <div data-testid={testId}>
@@ -233,6 +240,7 @@ function RelationList({
               link={link}
               projectKey={projectKey}
               removeLabel={`${removePrefix ?? `Remove ${title.toLowerCase()}`} ${link.key}`}
+              pending={pending}
               onRemove={() => onRemove(link)}
             />
           ))}
@@ -247,11 +255,13 @@ function RelationRow({
   projectKey,
   removeLabel,
   onRemove,
+  pending = false,
 }: {
   link: IssueLinkDTO;
   projectKey: string;
   removeLabel: string;
   onRemove: () => void;
+  pending?: boolean;
 }) {
   return (
     <li className="flex items-center gap-2">
@@ -259,7 +269,7 @@ function RelationRow({
         <span className="mr-1.5 font-mono text-[11px] text-ink-faint">{link.key}</span>
         {link.title}
       </Link>
-      <button type="button" onClick={onRemove} aria-label={removeLabel} className="shrink-0 text-[11px] text-ink-faint hover:text-ink">
+      <button type="button" onClick={onRemove} aria-label={removeLabel} disabled={pending} className="shrink-0 text-[11px] text-ink-faint hover:text-ink disabled:opacity-50">
         Remove
       </button>
     </li>

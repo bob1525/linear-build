@@ -22,7 +22,7 @@ The toolbar appears once something is selected:
 
 `planBatch` decides the outcome before any write. An id that is not in the project fails with "Issue not found" and the others still run. An assignee or label that is not in the project fails every selected issue with that reason, and nothing is written. Duplicate ids are handled once. Each accepted issue is then written in its own transaction, with the same activity entry a single edit would record. A write that throws is recorded as a failure for that issue only.
 
-The bar shows "Updating N issues…" or "Deleting N issues…" while the request is in flight. It then shows `Updated · 2 succeeded, 0 failed` (or Deleted), the keys that succeeded, and one line per failure: `ORB-4: Issue not found` or `Unknown issue: Issue not found` when the issue was already gone. Succeeded issues leave the selection. Failed ones stay selected.
+The bar shows "Updating N issues…" or "Deleting N issues…" while the request is in flight. It then shows `Updated · 2 succeeded, 0 failed` (or Deleted), the keys that succeeded, and one line per failure: `ORB-4: Issue not found` or `Unknown issue: Issue not found` when the issue was already gone. Succeeded issues leave the selection. Failed ones stay selected. An issue reported missing is taken off the list immediately. Stage 5 also sends the `updatedAt` the screen loaded. `planBatch` rejects that issue with the conflict sentence when the database copy is newer, and still plans the issues that match.
 
 ## Tests
 
@@ -33,12 +33,15 @@ The bar shows "Updating N issues…" or "Deleting N issues…" while the request
 | Vitest | 65/65 |
 | Playwright | 36/36 |
 
+Those two counts are from when Stage 4 landed. The branch pass after Stage 5 is in `TEST_PASS.md`.
+
 Unit tests in `tests/unit/batch.test.ts`:
 
 | Test | What it checks |
 | --- | --- |
 | plans a status change for every selected issue and does not mutate them | Status plan, summary text, and a non-mutating apply |
 | reports a missing issue and still updates the ones that exist | Partial status result, duplicate id ignored |
+| holds back a stale issue and still plans the one that matches | A newer `updatedAt` fails that issue only |
 | rejects an invalid status without marking those issues updated | Invalid status fails the known issues; a missing id fails separately |
 | rejects an assignee who is not a member and allows unassigning | Bad assignee fails the batch; unassign is allowed |
 | adds and removes a project label without changing the original issue | Label add, remove, and an unknown label |
