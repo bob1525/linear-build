@@ -43,7 +43,7 @@ Baseline, recorded before this workflow existed:
 
 The failure is `e2e/edge.spec.ts` › `the later saver of an issue gets a conflict prompt`. After Marcus's second rename, `getByText('renamed the issue')` stayed at 1 for 10 seconds; the test expected 2. The failure screenshot shows the title field already reading the second title, one "Marcus Hale renamed the issue" activity, no "Saving…" line, and no conflict dialog. A solo rerun of that test failed the same way (12.9 seconds). The same test had passed inside the previous full run of commit `b45963c` (42/42), so it is intermittent, not a missing browser.
 
-Remote file and check-run evidence is filled in under "Push and the pull request" after the push.
+The remote confirmation is in "Push and the pull request" below.
 
 ## Problems found
 
@@ -57,4 +57,15 @@ On https://github.com/bob1525/linear-build/pull/1, open the **Checks** tab, or t
 
 ## Push and the pull request
 
-This section is completed after the commit is pushed.
+The workflow file is on `origin/cursor/linear-issue-tracker-ef1d` at commit `0e0ce31` (`git ls-tree` shows `.github/workflows/ci.yml`, blob `b9144bed77ad7042f8cd5d72cd1b7de09101e71b`). The push was accepted. It did not need a separate workaround. The credential used for this push is allowed to update workflow files.
+
+Pushing that commit started Actions run [42841709016](https://github.com/bob1525/linear-build/actions/runs/42841709016) (`push`, head `0e0ce31`, finished in 3m27s). The workflow conclusion is **success** because the Playwright job is allowed to fail. The jobs themselves:
+
+| Job | Conclusion | What it did |
+| --- | --- | --- |
+| Lint, typecheck, and unit tests | success (44s) | `npm ci`, lint, `tsc --noEmit`, and Vitest all passed |
+| Playwright | failure (3m23s) | Chromium installed. `npm run test:e2e` reported **41 passed, 1 failed**. The failure is the same conflict test. The first attempt waited for one "renamed the issue" and saw 0. The CI retry (`retries: 1`) waited for two and saw 1. |
+
+A second run, [42841891655](https://github.com/bob1525/linear-build/actions/runs/42841891655), was queued by the `pull_request` event for the same push. It was still in progress when the push run finished. Both events are configured, so one push to this pull-request branch starts two workflows.
+
+On the pull request, open the Checks tab. The unit job is the gate. The Playwright job is the end-to-end log, and on this run it is red. The workflow stays green only because that job sets `continue-on-error`.
