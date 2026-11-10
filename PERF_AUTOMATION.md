@@ -31,12 +31,26 @@ Local command, 2026-11-10, Linux 6.12.113+ x64, Node v22.23.4, Intel Xeon, 4 cor
 | `npm run perf` | Exit 0. 500 issues. Board-load samples 551, 438, 490 ms. Median **490 ms**. `status=ok` against 2000 ms. Keyword median 268 ms (1 issue). Priority median 137 ms (100 issues) |
 | Budget forced to 1 ms | Exit 0. Median 505 ms. `status=warn` and `::warning title=Board load::Board load median 505 ms is not under 1 ms.` |
 
-The Actions run is recorded in the next section after the workflow finishes.
-
 ## Problems found
 
 The Stage 5 tables did not name the machine. The command prints it now, and the command run above records this agent. No measurement failed. The warning path does not fail the process.
 
+On the hosted runner the first drag's longest frame gap was 50 ms (p50 still 16.7 ms). The check only budgets board load, and that median was 587 ms, so the job stayed green.
+
 ## Actions run
 
-Pending the first Performance workflow on this branch.
+[42848735418](https://github.com/bob1525/linear-build/actions/runs/42848735418) (`pull_request`, head `6371a65`, created 2026-11-10T15:51:27Z, finished 2026-11-10T15:53:03Z). Workflow conclusion: **success**. The Board load job succeeded (15:51:30Z–15:53:02Z).
+
+Runner: `ubuntu-latest`, Linux 7.0.0-1019-azure x64, Node v22.23.4, AMD EPYC 7763, 4 cores, 15983 MB, `RUNNER_OS=Linux`, `RUNNER_ARCH=X64`.
+
+| Measurement | Samples | Median |
+| --- | --- | ---: |
+| Board load | 668, 555, 587 ms | **587 ms** |
+| Keyword filter | 357, 338, 335 ms | 338 ms |
+| Priority filter | 269, 184, 287 ms | 269 ms |
+
+500 issues on every board load. Keyword filter showed 1 issue. Priority filter showed 100. Log line: `PERF boardLoadMedianMs=587 budgetMs=2000 status=ok`. No `::warning::` for the budget.
+
+The required CI workflow on the same commit also succeeded: push [42848722881](https://github.com/bob1525/linear-build/actions/runs/42848722881) (unit 15:51:26Z–15:51:59Z, Playwright 15:51:26Z–15:53:53Z) and pull request [42848735255](https://github.com/bob1525/linear-build/actions/runs/42848735255) (unit 15:51:32Z–15:52:07Z, Playwright 15:51:31Z–15:53:59Z).
+
+The command, the workflow, and this note are committed on `cursor/linear-issue-tracker-ef1d`.

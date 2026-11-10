@@ -18,6 +18,8 @@ That command rebuilds `prisma/perf.db`, runs `next build`, starts the app on htt
 
 `.github/workflows/perf.yml` runs `npm run perf` on pull requests and on manual dispatch. The job is the 500-issue measurement, not the unit or end-to-end suite. Crossing the board-load budget logs a warning and leaves the job green. A failed seed, build, or measurement fails the job.
 
+The first run is [42848735418](https://github.com/bob1525/linear-build/actions/runs/42848735418) (`pull_request`, `6371a65`, 2026-11-10). `ubuntu-latest`, Linux 7.0.0-1019-azure x64, Node v22.23.4, AMD EPYC 7763, 4 cores, 15983 MB. Board-load samples 668, 555, and 587 ms, median **587 ms**, `status=ok` against 2000 ms. Keyword median 338 ms. Priority median 269 ms. The job succeeded.
+
 ## Command run on this agent
 
 `npm run perf` on 2026-11-10, before the Actions run. Linux 6.12.113+ x64, Node v22.23.4, Intel Xeon, 4 cores, 16003 MB. GitHub runner fields were empty because this was not Actions. The board still showed 500 issues. Board-load samples were 551, 438, and 490 ms.
