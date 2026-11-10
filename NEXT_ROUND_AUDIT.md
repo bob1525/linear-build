@@ -54,4 +54,7 @@ The Actions run for this audit commit is in the next section.
 
 ## Actions run
 
-Recorded after the workflow for this commit finishes.
+Push of `50b1e6d` (the audit and the README index): [42866322549](https://github.com/bob1525/linear-build/actions/runs/42866322549), conclusion success.
+
+- `Lint, typecheck, and unit tests`: 2026-11-10 17:34:23Z to 17:35:23Z. **77 passed**.
+- `Playwright`: 2026-11-10 17:34:23Z to 17:36:50Z. **46 passed** (1.2 minutes). No flaky test. The keyboard-dialog test passed on the first attempt.
