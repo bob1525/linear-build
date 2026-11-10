@@ -15,7 +15,19 @@ import { StatusIcon } from "@/components/icons";
 
 type PendingMove = { status: Status; previous: Status; ticket: number };
 
-export function Board({ issues, projectKey, sort }: { issues: IssueDTO[]; projectKey: string; sort: IssueSort }) {
+export function Board({
+  issues,
+  projectKey,
+  sort,
+  selectedIds = [],
+  onSelect,
+}: {
+  issues: IssueDTO[];
+  projectKey: string;
+  sort: IssueSort;
+  selectedIds?: string[];
+  onSelect?: (id: string, mods: { shift: boolean; meta: boolean }) => void;
+}) {
   const router = useRouter();
   const [items, setItems] = useState(issues);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -27,6 +39,12 @@ export function Board({ issues, projectKey, sort }: { issues: IssueDTO[]; projec
   const draggingRef = useRef(false);
   const wantsRefreshRef = useRef(false);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const signature = issues.map((issue) => `${issue.id}:${issue.status}:${issue.updatedAt}`).join("|");
+  const [seen, setSeen] = useState(signature);
+  if (seen !== signature && pendingRef.current.size === 0 && !draggingRef.current) {
+    setSeen(signature);
+    setItems(issues);
+  }
   itemsRef.current = items;
 
   function maybeRefresh() {
@@ -119,7 +137,14 @@ export function Board({ issues, projectKey, sort }: { issues: IssueDTO[]; projec
         ) : null}
         <div data-testid="board-scroll" className="flex min-h-0 flex-1 gap-3 overflow-x-auto px-3 pb-4 pt-3 sm:px-4">
           {STATUSES.map((status) => (
-            <Column key={status.id} status={status.id} issues={groups[status.id]} projectKey={projectKey} />
+            <Column
+              key={status.id}
+              status={status.id}
+              issues={groups[status.id]}
+              projectKey={projectKey}
+              selectedIds={selectedIds}
+              onSelect={onSelect}
+            />
           ))}
         </div>
       </div>
@@ -134,7 +159,19 @@ export function Board({ issues, projectKey, sort }: { issues: IssueDTO[]; projec
   );
 }
 
-function Column({ status, issues, projectKey }: { status: Status; issues: IssueDTO[]; projectKey: string }) {
+function Column({
+  status,
+  issues,
+  projectKey,
+  selectedIds,
+  onSelect,
+}: {
+  status: Status;
+  issues: IssueDTO[];
+  projectKey: string;
+  selectedIds: string[];
+  onSelect?: (id: string, mods: { shift: boolean; meta: boolean }) => void;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   return (
     <section
@@ -158,7 +195,15 @@ function Column({ status, issues, projectKey }: { status: Status; issues: IssueD
             {isOver ? "Drop here" : "No issues"}
           </p>
         ) : (
-          issues.map((issue) => <IssueCard key={issue.id} issue={issue} projectKey={projectKey} />)
+          issues.map((issue) => (
+            <IssueCard
+              key={issue.id}
+              issue={issue}
+              projectKey={projectKey}
+              selected={selectedIds.includes(issue.id)}
+              onSelect={onSelect}
+            />
+          ))
         )}
       </div>
     </section>

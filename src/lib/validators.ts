@@ -82,6 +82,20 @@ export const defaultViewSchema = z.object({
   isDefault: z.boolean(),
 });
 
+export const batchOpSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("status"), status: statusSchema }),
+  z.object({ type: z.literal("assignee"), assigneeId: z.string().min(1).nullable() }),
+  z.object({ type: z.literal("add_label"), labelId: z.string().min(1) }),
+  z.object({ type: z.literal("remove_label"), labelId: z.string().min(1) }),
+  z.object({ type: z.literal("delete") }),
+]);
+
+export const batchSchema = z.object({
+  projectKey: z.string().trim().min(1),
+  issueIds: z.array(z.string().min(1)).min(1, "Select at least one issue").max(100, "Select 100 issues or fewer"),
+  op: batchOpSchema,
+});
+
 export const relationKindSchema = z.enum(["blocks", "blocked_by", "related", "sub_issue"]);
 
 export const changeRelationSchema = z.object({

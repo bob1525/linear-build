@@ -14,20 +14,41 @@ export function IssueCard({
   issue,
   projectKey,
   overlay = false,
+  selected = false,
+  onSelect,
 }: {
   issue: IssueDTO;
   projectKey: string;
   overlay?: boolean;
+  selected?: boolean;
+  onSelect?: (id: string, mods: { shift: boolean; meta: boolean }) => void;
 }) {
   if (overlay) return <CardFace issue={issue} projectKey={projectKey} overlay />;
-  return <DraggableCard issue={issue} projectKey={projectKey} />;
+  return <DraggableCard issue={issue} projectKey={projectKey} selected={selected} onSelect={onSelect} />;
 }
 
-function DraggableCard({ issue, projectKey }: { issue: IssueDTO; projectKey: string }) {
+function DraggableCard({
+  issue,
+  projectKey,
+  selected,
+  onSelect,
+}: {
+  issue: IssueDTO;
+  projectKey: string;
+  selected: boolean;
+  onSelect?: (id: string, mods: { shift: boolean; meta: boolean }) => void;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: issue.id });
   return (
     <div ref={setNodeRef}>
-      <CardFace issue={issue} projectKey={projectKey} placeholder={isDragging} dragHandle={{ attributes, listeners }} />
+      <CardFace
+        issue={issue}
+        projectKey={projectKey}
+        selected={selected}
+        onSelect={onSelect}
+        placeholder={isDragging}
+        dragHandle={{ attributes, listeners }}
+      />
     </div>
   );
 }
@@ -37,12 +58,16 @@ function CardFace({
   projectKey,
   overlay = false,
   placeholder = false,
+  selected = false,
+  onSelect,
   dragHandle,
 }: {
   issue: IssueDTO;
   projectKey: string;
   overlay?: boolean;
   placeholder?: boolean;
+  selected?: boolean;
+  onSelect?: (id: string, mods: { shift: boolean; meta: boolean }) => void;
   dragHandle?: {
     attributes: ReturnType<typeof useDraggable>["attributes"];
     listeners: ReturnType<typeof useDraggable>["listeners"];
@@ -56,13 +81,26 @@ function CardFace({
       data-blocked={issue.blockedByCount > 0 ? "true" : "false"}
       data-blocks={issue.blocksCount > 0 ? "true" : "false"}
       data-placeholder={placeholder ? "true" : undefined}
+      data-selected={selected ? "true" : "false"}
+      onClickCapture={
+        onSelect
+          ? (event) => {
+              if (!event.shiftKey && !event.metaKey && !event.ctrlKey) return;
+              event.preventDefault();
+              event.stopPropagation();
+              onSelect(issue.id, { shift: event.shiftKey, meta: event.metaKey || event.ctrlKey });
+            }
+          : undefined
+      }
       className={cn(
         "rounded-lg border border-line bg-panel shadow-card",
         overlay && "rotate-[1.5deg] shadow-pop",
         placeholder && "border-dashed border-accent/70 bg-accent/5 opacity-50",
+        selected && "border-accent/70 ring-1 ring-accent/70",
       )}
     >
       <div className="flex items-start gap-1 p-2">
+        {onSelect ? <SelectBox issue={issue} selected={selected} onSelect={onSelect} /> : null}
         {dragHandle ? (
           <button
             type="button"
@@ -110,5 +148,34 @@ function CardFace({
         </div>
       </div>
     </article>
+  );
+}
+
+function SelectBox({
+  issue,
+  selected,
+  onSelect,
+}: {
+  issue: IssueDTO;
+  selected: boolean;
+  onSelect: (id: string, mods: { shift: boolean; meta: boolean }) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={selected}
+      aria-label={`Select ${issue.key}`}
+      data-testid={`select-${issue.key}`}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onSelect(issue.id, { shift: event.shiftKey, meta: event.metaKey || event.ctrlKey });
+      }}
+      className={cn(
+        "mt-0.5 h-4 w-4 shrink-0 rounded border border-line",
+        selected ? "border-accent bg-accent" : "bg-black/20 hover:border-ink-faint",
+      )}
+    />
   );
 }

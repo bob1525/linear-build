@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { updateIssueAction } from "@/lib/actions/issues";
@@ -15,7 +15,19 @@ import { BlockingMarks } from "@/components/blocking-marks";
 import { PriorityIcon, StatusIcon } from "@/components/icons";
 import { Menu, MenuOption } from "@/components/menu";
 
-export function IssueList({ issues, projectKey, sort }: { issues: IssueDTO[]; projectKey: string; sort: IssueSort }) {
+export function IssueList({
+  issues,
+  projectKey,
+  sort,
+  selectedIds = [],
+  onSelect,
+}: {
+  issues: IssueDTO[];
+  projectKey: string;
+  sort: IssueSort;
+  selectedIds?: string[];
+  onSelect?: (id: string, mods: { shift: boolean; meta: boolean }) => void;
+}) {
   const sorted = [...issues].sort((left, right) => compareIssues(left, right, sort));
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +39,8 @@ export function IssueList({ issues, projectKey, sort }: { issues: IssueDTO[]; pr
         </p>
       ) : null}
       <div className="min-w-[720px]">
-        <div className="grid grid-cols-[28px_84px_minmax(0,1fr)_148px_180px_96px_36px] gap-2 border-b border-line px-4 py-2 text-[11px] uppercase tracking-wide text-ink-faint">
+        <div className="grid grid-cols-[28px_28px_84px_minmax(0,1fr)_148px_180px_96px_36px] gap-2 border-b border-line px-4 py-2 text-[11px] uppercase tracking-wide text-ink-faint">
+          <span />
           <span />
           <span>ID</span>
           <span>Title</span>
@@ -43,8 +56,42 @@ export function IssueList({ issues, projectKey, sort }: { issues: IssueDTO[]; pr
               data-testid={`row-${issue.key}`}
               data-blocked={issue.blockedByCount > 0 ? "true" : "false"}
               data-blocks={issue.blocksCount > 0 ? "true" : "false"}
-              className="grid grid-cols-[28px_84px_minmax(0,1fr)_148px_180px_96px_36px] items-center gap-2 border-b border-line px-4 py-2 hover:bg-white/[0.03]"
+              data-selected={selectedIds.includes(issue.id) ? "true" : "false"}
+              onClickCapture={
+                onSelect
+                  ? (event) => {
+                      if (!event.shiftKey && !event.metaKey && !event.ctrlKey) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onSelect(issue.id, { shift: event.shiftKey, meta: event.metaKey || event.ctrlKey });
+                    }
+                  : undefined
+              }
+              className={cn(
+                "grid grid-cols-[28px_28px_84px_minmax(0,1fr)_148px_180px_96px_36px] items-center gap-2 border-b border-line px-4 py-2 hover:bg-white/[0.03]",
+                selectedIds.includes(issue.id) && "bg-accent/10",
+              )}
             >
+              {onSelect ? (
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={selectedIds.includes(issue.id)}
+                  aria-label={`Select ${issue.key}`}
+                  data-testid={`select-${issue.key}`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onSelect(issue.id, { shift: event.shiftKey, meta: event.metaKey || event.ctrlKey });
+                  }}
+                  className={cn(
+                    "h-4 w-4 rounded border border-line",
+                    selectedIds.includes(issue.id) ? "border-accent bg-accent" : "bg-black/20 hover:border-ink-faint",
+                  )}
+                />
+              ) : (
+                <span />
+              )}
               <PriorityIcon priority={issue.priority} />
               <Link href={`/p/${projectKey}/issues/${issue.number}`} className="font-mono text-[12px] text-ink-faint hover:text-ink">
                 {issue.key}
@@ -79,6 +126,10 @@ function StatusControl({ issue, onError }: { issue: IssueDTO; onError: (message:
   const router = useRouter();
   const [status, setStatus] = useState(issue.status);
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setStatus(issue.status);
+  }, [issue.status]);
 
   function choose(next: Status) {
     if (next === status) return;
