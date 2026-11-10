@@ -187,3 +187,15 @@ Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A pu
 - The seed creates Ava Chen, Marcus Hale, Priya Nair, and Leo Park, all with the password `demo1234`. Those accounts are fixtures. On a public server, start from an empty file, or change every password and delete the accounts you do not want.
 - Do not set `NORTHSTAR_SHOW_DEMO=1`. Without it, production does not render Fill demo or the demo password.
 - Sign-in counts failed passwords: 8 per email and 40 per client address, each in a 15 minute window. Registration counts every accepted form: 5 per email and 30 per client address, in the same window. The counters live in the Node process, so a restart clears them and a second process does not see them. The address is the first `x-forwarded-for` hop, then `x-real-ip`, then a shared `local` bucket, and a client can spoof those headers. There is still no email verification or password reset. Passwords are bcrypt with 10 rounds.
+
+## Documentation
+
+Hardening round:
+
+- [NEXT_ROUND_AUDIT.md](NEXT_ROUND_AUDIT.md) summarizes the round and records the latest test run.
+- [SCREENSHOTS_FIX.md](SCREENSHOTS_FIX.md) explains why the relations shot is a Todo-column crop and why the conflict shot waits out the toast.
+- [PERF_THRESHOLD.md](PERF_THRESHOLD.md) sets the board-load warning at 1200 ms and records the drag frame gap.
+- [AUTH_HARDENING.md](AUTH_HARDENING.md) covers the hidden Fill demo block, the in-memory rate limits, and the keyboard-dialog flake.
+- [MERGE_READINESS.md](MERGE_READINESS.md) names the checks to require and the steps for merging PR #1.
+
+Earlier notes: [CI_SETUP.md](CI_SETUP.md), [SCREENSHOTS_UPDATE.md](SCREENSHOTS_UPDATE.md), [PERF_AUTOMATION.md](PERF_AUTOMATION.md), [MOBILE_VERIFICATION.md](MOBILE_VERIFICATION.md), [FINAL_ROUND_AUDIT.md](FINAL_ROUND_AUDIT.md), [PERFORMANCE.md](PERFORMANCE.md), [DRAG_ROOT_CAUSE.md](DRAG_ROOT_CAUSE.md), [RELATION_IMPLEMENTATION.md](RELATION_IMPLEMENTATION.md), [SAVED_VIEWS.md](SAVED_VIEWS.md), [BATCH_OPERATIONS.md](BATCH_OPERATIONS.md), [EDGE_CASES.md](EDGE_CASES.md), and [TEST_PASS.md](TEST_PASS.md).
