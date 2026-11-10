@@ -80,4 +80,11 @@ CI’s double trigger makes two runs share one check name. A protection rule doe
 
 ## Actions run
 
-Recorded after the workflow for this commit finishes.
+[42864621185](https://github.com/bob1525/linear-build/actions/runs/42864621185) (`push`, head `020ce25`, 2026-11-10). Workflow conclusion: **success**. This commit only adds this note. The check names on the run are the ones in the table.
+
+| Job | Conclusion | What it did |
+| --- | --- | --- |
+| Lint, typecheck, and unit tests | success (17:24:28Z–17:25:29Z) | Vitest **77/77** |
+| Playwright | success (17:24:28Z–17:27:54Z) | **46 passed**. The log did not say flaky |
+
+`Board load` is not part of this push workflow. It runs on the pull request.
