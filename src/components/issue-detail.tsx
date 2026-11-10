@@ -7,7 +7,8 @@ import { createCommentAction, updateIssueAction } from "@/lib/actions/issues";
 import { describeActivity } from "@/lib/activity";
 import { PRIORITIES, STATUSES, priorityLabel, statusLabel, type Priority, type Status } from "@/lib/constants";
 import { isOverdue, toDateInputValue } from "@/lib/format";
-import type { ActivityDTO, CommentDTO, IssueDTO, LabelDTO, ProjectSummary, UserDTO } from "@/lib/types";
+import type { ActivityDTO, CommentDTO, IssueCandidate, IssueDTO, IssueRelationGroups, LabelDTO, ProjectSummary, UserDTO } from "@/lib/types";
+import { IssueRelations } from "@/components/issue-relations";
 import { cn } from "@/lib/cn";
 import { Avatar, LabelPill } from "@/components/avatar";
 import { PriorityIcon, StatusIcon } from "@/components/icons";
@@ -24,6 +25,8 @@ export function IssueDetail({
   activities,
   members,
   labels,
+  relations,
+  candidates,
   currentUser,
 }: {
   project: ProjectSummary;
@@ -32,13 +35,15 @@ export function IssueDetail({
   activities: ActivityDTO[];
   members: UserDTO[];
   labels: LabelDTO[];
+  relations: IssueRelationGroups;
+  candidates: IssueCandidate[];
   currentUser: UserDTO;
 }) {
   const desktop = useIsDesktop();
   const [extraActivities, setExtraActivities] = useState<ActivityDTO[]>([]);
   useEffect(() => {
     setExtraActivities([]);
-  }, [activities]);
+  }, [issue.id]);
   const visibleActivities = [
     ...extraActivities.filter((item) => !activities.some((activity) => activityFingerprint(activity) === activityFingerprint(item))),
     ...activities,
@@ -68,6 +73,15 @@ export function IssueDetail({
           <TitleEditor issue={issue} />
           {!desktop ? <div className="mt-4 rounded-xl border border-line bg-white/[0.02] p-3">{properties}</div> : null}
           <DescriptionEditor issue={issue} />
+          <IssueRelations
+            projectKey={project.key}
+            issueId={issue.id}
+            issueKey={issue.key}
+            relations={relations}
+            candidates={candidates}
+            currentUser={currentUser}
+            onActivity={(activity) => setExtraActivities((current) => [activity, ...current])}
+          />
           <CommentSection issueId={issue.id} comments={comments} currentUser={currentUser} onCommented={(activity) => setExtraActivities((current) => [activity, ...current])} />
           {!desktop ? <div className="mt-8">{activity}</div> : null}
         </article>

@@ -26,6 +26,8 @@ export default async function IssuePage({ params }: { params: Promise<Params> })
       activities={data.activities}
       members={data.members}
       labels={data.labels}
+      relations={data.relations}
+      candidates={data.candidates}
       currentUser={user}
     />
   );

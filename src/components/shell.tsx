@@ -15,6 +15,22 @@ import { Kbd } from "@/components/ui";
 
 type Toast = { id: number; message: string; href?: string };
 
+// The board search field lives inside the page, which can still be the loading
+// skeleton when the shell is already interactive. Keep trying until it mounts
+// (or a refresh swaps it) so "/" focuses the field that actually appears.
+function focusSearch() {
+  const started = performance.now();
+  const attempt = () => {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active.matches("input, textarea, select") && !active.matches("[data-search]")) return;
+    const input = document.querySelector<HTMLInputElement>("[data-search]");
+    if (input && document.activeElement !== input) input.focus();
+    if (document.activeElement instanceof HTMLElement && document.activeElement.matches("[data-search]")) return;
+    if (performance.now() - started < 2500) requestAnimationFrame(attempt);
+  };
+  attempt();
+}
+
 export function AppShell({
   user,
   projects,
@@ -77,7 +93,7 @@ export function AppShell({
       }
       if (event.key === "/") {
         event.preventDefault();
-        document.querySelector<HTMLInputElement>("[data-search]")?.focus();
+        focusSearch();
       }
     }
     window.addEventListener("keydown", onKey);

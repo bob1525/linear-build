@@ -54,9 +54,28 @@ export function describeActivity(type: string, payload: unknown) {
       return "renamed the issue";
     case "description_changed":
       return "updated the description";
+    case "relation_added":
+    case "relation_removed":
+      return describeRelation(type === "relation_added", data);
+    case "subissue_added":
+      return data.role === "parent" ? `set the parent to ${keyOf(data)}` : `added ${keyOf(data)} as a sub-issue`;
+    case "subissue_removed":
+      return data.role === "parent" ? `cleared the parent ${keyOf(data)}` : `removed sub-issue ${keyOf(data)}`;
     default:
       return "updated the issue";
   }
+}
+
+function keyOf(data: Record<string, unknown>) {
+  return typeof data.key === "string" && data.key.length > 0 ? data.key : "an issue";
+}
+
+function describeRelation(added: boolean, data: Record<string, unknown>) {
+  const key = keyOf(data);
+  if (data.role === "blocked_by") return added ? `marked this issue as blocked by ${key}` : `is no longer blocked by ${key}`;
+  if (data.role === "blocks") return added ? `marked this issue as blocking ${key}` : `no longer blocks ${key}`;
+  if (data.role === "related") return added ? `related this issue to ${key}` : `removed the relation to ${key}`;
+  return added ? "added a relation" : "removed a relation";
 }
 
 export function formatActivityLine(actor: string, type: string, payload: unknown) {

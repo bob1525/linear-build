@@ -27,6 +27,29 @@ export type IssueDTO = {
   creator: UserDTO;
   labels: LabelDTO[];
   commentCount: number;
+  blocksCount: number;
+  blockedByCount: number;
+};
+
+export type IssueLinkDTO = {
+  issueId: string;
+  key: string;
+  number: number;
+  title: string;
+  status: Status;
+};
+
+export type IssueRelationGroups = {
+  blocks: IssueLinkDTO[];
+  blockedBy: IssueLinkDTO[];
+  related: IssueLinkDTO[];
+  parent: IssueLinkDTO | null;
+  subIssues: IssueLinkDTO[];
+};
+
+export type IssueCandidate = {
+  key: string;
+  title: string;
 };
 
 export type CommentDTO = {

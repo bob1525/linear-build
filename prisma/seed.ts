@@ -630,6 +630,8 @@ async function main() {
     throw new Error("DATABASE_URL is required. Copy .env.example to .env and try again.");
   }
 
+  await prisma.issueRelation.deleteMany();
+  await prisma.issue.updateMany({ data: { parentId: null } });
   await prisma.activity.deleteMany();
   await prisma.comment.deleteMany();
   await prisma.issueLabel.deleteMany();
@@ -737,10 +739,42 @@ async function main() {
     }
   }
 
+  await seedOrbitRelations();
+
   const counts = await prisma.issue.groupBy({ by: ["projectId"], _count: true });
   const total = counts.reduce((sum, row) => sum + row._count, 0);
   console.log(`Seeded ${users.size} users, ${projects.length} projects, and ${total} issues.`);
   console.log(`Demo login: ${ava} / ${DEMO_PASSWORD}`);
+}
+
+async function seedOrbitRelations() {
+  const project = await prisma.project.findUnique({
+    where: { key: "ORB" },
+    include: { issues: { orderBy: { number: "asc" } } },
+  });
+  if (!project) throw new Error("Orbit was not seeded");
+  const expectIssue = (number: number, title: string) => {
+    const issue = project.issues.find((item) => item.number === number);
+    if (!issue || issue.title !== title) {
+      throw new Error(`Expected ORB-${number} to be "${title}", found "${issue?.title ?? "nothing"}"`);
+    }
+    return issue;
+  };
+  const parent = expectIssue(1, "Board drag drops the card in the wrong column");
+  const blocked = expectIssue(2, FIXTURES.statusTitle);
+  const blocker = expectIssue(3, FIXTURES.zephyrTitle);
+  const comment = expectIssue(4, FIXTURES.commentTitle);
+  const child = expectIssue(5, "Keyboard shortcuts ignore the filter bar");
+  expectIssue(6, FIXTURES.hiddenTitle);
+
+  await prisma.issueRelation.create({
+    data: { projectId: project.id, type: "blocks", fromIssueId: blocker.id, toIssueId: blocked.id },
+  });
+  const [fromIssueId, toIssueId] = comment.id < child.id ? [comment.id, child.id] : [child.id, comment.id];
+  await prisma.issueRelation.create({
+    data: { projectId: project.id, type: "related", fromIssueId, toIssueId },
+  });
+  await prisma.issue.update({ where: { id: child.id }, data: { parentId: parent.id } });
 }
 
 main()

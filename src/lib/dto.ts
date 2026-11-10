@@ -26,7 +26,11 @@ export function toLabelDTO(label: LabelDTO): LabelDTO {
   return { id: label.id, name: label.name, color: label.color };
 }
 
-export function toIssueDTO(issue: IssueRecord, projectKey: string): IssueDTO {
+export function toIssueDTO(
+  issue: IssueRecord,
+  projectKey: string,
+  marks: { blocksCount: number; blockedByCount: number } = { blocksCount: 0, blockedByCount: 0 },
+): IssueDTO {
   return {
     id: issue.id,
     number: issue.number,
@@ -44,6 +48,8 @@ export function toIssueDTO(issue: IssueRecord, projectKey: string): IssueDTO {
       .map((row) => toLabelDTO(row.label))
       .sort((a, b) => a.name.localeCompare(b.name)),
     commentCount: issue._count.comments,
+    blocksCount: marks.blocksCount,
+    blockedByCount: marks.blockedByCount,
   };
 }
 

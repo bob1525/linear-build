@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { isOverdue, formatDueDate } from "@/lib/format";
 import { priorityLabel } from "@/lib/constants";
 import { Avatar, LabelPill } from "@/components/avatar";
+import { BlockingMarks } from "@/components/blocking-marks";
 import { CalendarIcon, GripIcon, PriorityIcon } from "@/components/icons";
 
 export function IssueCard({
@@ -52,6 +53,8 @@ function CardFace({
   return (
     <article
       data-testid={`card-${issue.key}`}
+      data-blocked={issue.blockedByCount > 0 ? "true" : "false"}
+      data-blocks={issue.blocksCount > 0 ? "true" : "false"}
       data-placeholder={placeholder ? "true" : undefined}
       className={cn(
         "rounded-lg border border-line bg-panel shadow-card",
@@ -78,6 +81,7 @@ function CardFace({
             <span className="font-mono text-[11px] text-ink-faint" title={priorityLabel(issue.priority)}>
               {issue.key}
             </span>
+            <BlockingMarks issue={issue} />
           </div>
           <Link
             href={`/p/${projectKey}/issues/${issue.number}`}

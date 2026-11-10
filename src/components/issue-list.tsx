@@ -10,6 +10,7 @@ import { formatDueDate, isOverdue } from "@/lib/format";
 import type { IssueDTO } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { Avatar, LabelPill } from "@/components/avatar";
+import { BlockingMarks } from "@/components/blocking-marks";
 import { PriorityIcon, StatusIcon } from "@/components/icons";
 import { Menu, MenuOption } from "@/components/menu";
 
@@ -39,15 +40,20 @@ export function IssueList({ issues, projectKey }: { issues: IssueDTO[]; projectK
             <li
               key={issue.id}
               data-testid={`row-${issue.key}`}
+              data-blocked={issue.blockedByCount > 0 ? "true" : "false"}
+              data-blocks={issue.blocksCount > 0 ? "true" : "false"}
               className="grid grid-cols-[28px_84px_minmax(0,1fr)_148px_180px_96px_36px] items-center gap-2 border-b border-line px-4 py-2 hover:bg-white/[0.03]"
             >
               <PriorityIcon priority={issue.priority} />
               <Link href={`/p/${projectKey}/issues/${issue.number}`} className="font-mono text-[12px] text-ink-faint hover:text-ink">
                 {issue.key}
               </Link>
-              <Link href={`/p/${projectKey}/issues/${issue.number}`} className="truncate text-[13px] font-medium hover:text-white" title={issue.title}>
-                {issue.title}
-              </Link>
+              <div className="flex min-w-0 items-center gap-2">
+                <Link href={`/p/${projectKey}/issues/${issue.number}`} className="truncate text-[13px] font-medium hover:text-white" title={issue.title}>
+                  {issue.title}
+                </Link>
+                <BlockingMarks issue={issue} />
+              </div>
               <StatusControl issue={issue} onError={setError} />
               <div className="flex min-w-0 gap-1 overflow-hidden">
                 {issue.labels.slice(0, 2).map((label) => (

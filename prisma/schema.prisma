@@ -43,6 +43,7 @@ model Project {
   members     ProjectMember[]
   issues      Issue[]
   labels      Label[]
+  relations   IssueRelation[]
 }
 
 model ProjectMember {
@@ -88,9 +89,31 @@ model Issue {
   labels      IssueLabel[]
   comments    Comment[]
   activities  Activity[]
+  parentId    String?
+  parent      Issue?          @relation("IssueSubIssues", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Issue[]         @relation("IssueSubIssues")
+  blocking    IssueRelation[] @relation("RelationFrom")
+  blockedBy   IssueRelation[] @relation("RelationTo")
 
   @@unique([projectId, number])
   @@index([projectId, status])
+  @@index([parentId])
+}
+
+model IssueRelation {
+  id          String   @id @default(cuid())
+  projectId   String
+  type        String
+  fromIssueId String
+  toIssueId   String
+  createdAt   DateTime @default(now())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fromIssue   Issue    @relation("RelationFrom", fields: [fromIssueId], references: [id], onDelete: Cascade)
+  toIssue     Issue    @relation("RelationTo", fields: [toIssueId], references: [id], onDelete: Cascade)
+
+  @@unique([fromIssueId, toIssueId, type])
+  @@index([toIssueId, type])
+  @@index([projectId])
 }
 
 model IssueLabel {

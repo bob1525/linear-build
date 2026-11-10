@@ -21,6 +21,14 @@ describe("describeActivity", () => {
     expect(describeActivity("labels_changed", { added: ["Bug"], removed: ["Design"] })).toBe("updated labels");
   });
 
+  it("describes relations and sub-issues", () => {
+    expect(describeActivity("relation_added", { role: "blocked_by", key: "ORB-3" })).toBe("marked this issue as blocked by ORB-3");
+    expect(describeActivity("relation_added", { role: "blocks", key: "ORB-2" })).toBe("marked this issue as blocking ORB-2");
+    expect(describeActivity("relation_removed", { role: "related", key: "ORB-5" })).toBe("removed the relation to ORB-5");
+    expect(describeActivity("subissue_added", { role: "child", key: "ORB-5" })).toBe("added ORB-5 as a sub-issue");
+    expect(describeActivity("subissue_removed", { role: "parent", key: "ORB-1" })).toBe("cleared the parent ORB-1");
+  });
+
   it("falls back when the payload is invalid or the type is unknown", () => {
     expect(describeActivity("title_changed", "{")).toBe("renamed the issue");
     expect(describeActivity("description_changed", null)).toBe("updated the description");

@@ -53,6 +53,14 @@ export const commentSchema = z.object({
   body: z.string().trim().min(1, "Write a comment before posting").max(10_000, "Comment is too long"),
 });
 
+export const relationKindSchema = z.enum(["blocks", "blocked_by", "related", "sub_issue"]);
+
+export const changeRelationSchema = z.object({
+  issueId: z.string().min(1),
+  target: z.string().trim().min(1, "Enter an issue key").max(80),
+  kind: relationKindSchema,
+});
+
 export const projectKeySchema = z
   .string()
   .trim()
