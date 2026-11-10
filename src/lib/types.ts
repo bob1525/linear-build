@@ -1,0 +1,66 @@
+import type { Priority, Status } from "@/lib/constants";
+
+export type UserDTO = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+export type LabelDTO = {
+  id: string;
+  name: string;
+  color: string;
+};
+
+export type IssueDTO = {
+  id: string;
+  number: number;
+  key: string;
+  title: string;
+  description: string;
+  status: Status;
+  priority: Priority;
+  dueDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+  assignee: UserDTO | null;
+  creator: UserDTO;
+  labels: LabelDTO[];
+  commentCount: number;
+};
+
+export type CommentDTO = {
+  id: string;
+  body: string;
+  createdAt: string;
+  author: UserDTO;
+};
+
+export type ActivityDTO = {
+  id: string;
+  type: string;
+  payload: string;
+  createdAt: string;
+  actor: UserDTO;
+};
+
+export type ProjectSummary = {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  color: string;
+  issueCount: number;
+  members: UserDTO[];
+  labels: LabelDTO[];
+};
+
+export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
+
+export function ok<T>(data: T): ActionResult<T> {
+  return { ok: true, data };
+}
+
+export function fail(error: string): ActionResult<never> {
+  return { ok: false, error };
+}
