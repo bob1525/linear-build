@@ -62,4 +62,11 @@ The drawer's close button included the area underneath the sidebar, so its cente
 
 ## Actions run
 
-Recorded after the workflow for this change finishes.
+[42851321920](https://github.com/bob1525/linear-build/actions/runs/42851321920) (`push`, head `b6cc691`, 2026-11-10). Workflow conclusion: **success**.
+
+| Job | Conclusion | What it did |
+| --- | --- | --- |
+| Lint, typecheck, and unit tests | success (16:07:05Z–16:08:14Z) | Lint, `tsc --noEmit`, and Vitest **71/71** |
+| Playwright | success (16:07:05Z–16:09:37Z) | **44 passed** in 1.4 minutes. `[mobile]` ran first: sidebar open/close (1.7s) and horizontal board scroll (1.6s). Then `[chromium]` passed the original 42 tests |
+
+The command, the tests, the screenshot, and this note are committed on `cursor/linear-issue-tracker-ef1d`.
