@@ -39,10 +39,6 @@ jobs:
     name: Playwright
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # The conflict-prompt end-to-end test does not finish reliably on this
-    # codebase (see CI_SETUP.md). Lint, typecheck, and Vitest are the gate.
-    # This job still runs so the log is on the pull request.
-    continue-on-error: true
     steps:
       - name: Check out the branch
         uses: actions/checkout@v4

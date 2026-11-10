@@ -13,9 +13,9 @@ The required job is `unit`, on `ubuntu-latest`, Node.js 22:
 5. `npx tsc --noEmit`
 6. `npm test` (Vitest)
 
-The second job is `e2e`. It installs Chromium with `npx playwright install --with-deps chromium`, copies `.env.example` to `.env` so `next build` has `DATABASE_URL`, and runs `npm run test:e2e` (reseed `prisma/e2e.db`, production build, Playwright on port 3100). `CI=true` is set, which makes Playwright retry a failed test once (`retries` in `playwright.config.ts`). This job is `continue-on-error: true`. Lint, typecheck, and Vitest are the gate. The Playwright job still runs, and its log is on the pull request.
+The second job is `e2e`. It installs Chromium with `npx playwright install --with-deps chromium`, copies `.env.example` to `.env` so `next build` has `DATABASE_URL`, and runs `npm run test:e2e` (reseed `prisma/e2e.db`, production build, Playwright on port 3100). `CI=true` is set, which makes Playwright retry a failed test once (`retries` in `playwright.config.ts`). This job is required. It does not set `continue-on-error`. Lint, typecheck, Vitest, and Playwright all have to pass.
 
-No existing test was removed or edited.
+No existing test was removed or edited. The conflict-prompt assertion is unchanged.
 
 ## Verification method
 
@@ -47,9 +47,9 @@ The remote confirmation is in "Push and the pull request" below.
 
 ## Problems found
 
-Playwright can execute in this environment: 41 of the 42 tests passed, including auth, batch, drag, filters, issues, relations, views, and the other edge cases. The conflict-prompt test does not reliably record the second rename in the activity list within the 10 second expect timeout. Because of that, `npm run test:e2e` is not a stable required gate. The workflow still runs it and keeps the log. The required gate is lint, typecheck, and Vitest.
+The first baseline and the first Actions run failed the conflict-prompt test. That failure is fixed. See "Known issue resolved" below. Playwright is a required job again.
 
-Pushing `.github/workflows/ci.yml` needs a credential that is allowed to update workflow files. If the push is rejected, the rejection is copied below instead of being routed around.
+Pushing `.github/workflows/ci.yml` was accepted. The credential used for this branch can update workflow files.
 
 ## How to view results
 
@@ -68,4 +68,38 @@ Pushing that commit started Actions run [42841709016](https://github.com/bob1525
 
 A second run, [42841891655](https://github.com/bob1525/linear-build/actions/runs/42841891655), was queued by the `pull_request` event for the same push. It was still in progress when the push run finished. Both events are configured, so one push to this pull-request branch starts two workflows.
 
-On the pull request, open the Checks tab. The unit job is the gate. The Playwright job is the end-to-end log, and on this run it is red. The workflow stays green only because that job sets `continue-on-error`.
+On the pull request, open the Checks tab. Both `Lint, typecheck, and unit tests` and `Playwright` are required. The run linked above stayed green only because Playwright was allowed to fail. That allowance has been removed.
+
+## Known issue resolved
+
+### Reproduction
+
+`e2e/edge.spec.ts` › `the later saver of an issue gets a conflict prompt`. The assertion was left as written: after Marcus's first rename, `getByText('renamed the issue')` must have count 1, and after the second rename it must have count 2.
+
+On this machine, before the fix, 8 solo runs of that test against a production build were **5 passed, 3 failed**. Failures were `expected 1, received 0` on the first rename, or `expected 2, received 1` on the second. The same test failed in the full suite (41 passed, 1 failed) and on Actions run [42841709016](https://github.com/bob1525/linear-build/actions/runs/42841709016): the Playwright job failed in 3m23s, including the one CI retry (first attempt saw 0 rename lines, retry saw 1).
+
+### Root cause
+
+Not a seed or database problem, and not a missed write in the conflict path. On a failing run the server action returned `ok: true`, and `prisma/e2e.db` already contained the `title_changed` row (one row per rename, with the right from/to payload). `getIssuePage` logged the new activity within about 20 ms of the write. The page Marcus was looking at still showed only "Ava Chen created the issue", while the title field showed the text he had just typed.
+
+The activity list is rendered only from the server component props. `router.refresh()` and the revalidated server-action payload both run inside React `startTransition`. That transition often never commits, so the new activity stays off the screen for the whole 10 second assertion. Status changes and comments already append a local activity when the action returns. A title change did not. The fingerprint used to drop a local row once the server copy arrived was `type + actor + description text`. Every rename has the same description ("renamed the issue"), so a second local rename would have been hidden by the first server row.
+
+A later refresh can also replace the title field while the next rename is being typed. That is a separate race on the same page. The field now keeps an in-progress edit, and Reload still discards it.
+
+### Fix
+
+`TitleEditor` reads the title from the field on blur and, when the save succeeds, appends a `title_changed` activity with the same `{ from, to }` payload the server stores. The activity fingerprint includes that payload, so two renames stay visible and the local row is dropped once the matching server row arrives. A dirty field is not overwritten by a refresh. Reload bumps a counter that accepts the server title again. The conflict assertion was not changed. `continue-on-error` was removed from the Playwright job.
+
+### Evidence
+
+After the fix, on this machine (Node v22.23.4):
+
+| Check | Result |
+| --- | --- |
+| `npx tsc --noEmit` | Pass |
+| `npm run lint` | Pass. No ESLint warnings or errors. Next.js still prints that `next lint` is deprecated. |
+| `npm test` | **71/71** |
+| Solo conflict test, 8 runs | **8 passed, 0 failed** |
+| `npm run test:e2e` | **42 passed** (1.2 minutes of tests), including `the later saver of an issue gets a conflict prompt` |
+
+The Actions run for the commit that removes `continue-on-error` is the required-gate confirmation. It is recorded here after that run finishes.

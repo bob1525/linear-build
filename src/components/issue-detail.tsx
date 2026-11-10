@@ -47,6 +47,7 @@ export function IssueDetail({
   const [overwritePending, setOverwritePending] = useState(false);
   const [conflictError, setConflictError] = useState<string | null>(null);
   const [extraActivities, setExtraActivities] = useState<ActivityDTO[]>([]);
+  const [serverTitleEpoch, setServerTitleEpoch] = useState(0);
 
   useEffect(() => {
     setBaseUpdatedAt(issue.updatedAt);
@@ -77,11 +78,19 @@ export function IssueDetail({
 
   function reloadConflict() {
     setConflict(null);
+    setServerTitleEpoch((epoch) => epoch + 1);
     router.refresh();
   }
   useEffect(() => {
     setExtraActivities([]);
   }, [issue.id]);
+  function rememberActivity(activity: ActivityDTO) {
+    setExtraActivities((current) => {
+      const fingerprint = activityFingerprint(activity);
+      if (current.some((item) => activityFingerprint(item) === fingerprint)) return current;
+      return [activity, ...current];
+    });
+  }
   const visibleActivities = [
     ...extraActivities.filter((item) => !activities.some((activity) => activityFingerprint(activity) === activityFingerprint(item))),
     ...activities,
@@ -92,7 +101,7 @@ export function IssueDetail({
       members={members}
       labels={labels}
       currentUser={currentUser}
-      onActivity={(activity) => setExtraActivities((current) => [activity, ...current])}
+      onActivity={rememberActivity}
       commit={commit}
     />
   );
@@ -110,7 +119,13 @@ export function IssueDetail({
             <span className="text-ink-faint">/</span>
             <span className="font-mono text-ink-faint">{issue.key}</span>
           </p>
-          <TitleEditor issue={issue} commit={commit} />
+          <TitleEditor
+            issue={issue}
+            commit={commit}
+            currentUser={currentUser}
+            onActivity={rememberActivity}
+            serverTitleEpoch={serverTitleEpoch}
+          />
           {!desktop ? <div className="mt-4 rounded-xl border border-line bg-white/[0.02] p-3">{properties}</div> : null}
           <DescriptionEditor issue={issue} commit={commit} />
           <IssueRelations
@@ -120,13 +135,13 @@ export function IssueDetail({
             relations={relations}
             candidates={candidates}
             currentUser={currentUser}
-            onActivity={(activity) => setExtraActivities((current) => [activity, ...current])}
+            onActivity={rememberActivity}
           />
           <CommentSection
             issueId={issue.id}
             comments={comments}
             currentUser={currentUser}
-            onCommented={(activity) => setExtraActivities((current) => [activity, ...current])}
+            onCommented={rememberActivity}
             onVersion={setBaseUpdatedAt}
           />
           {!desktop ? <div className="mt-8">{activity}</div> : null}
@@ -167,14 +182,40 @@ type IssuePatch = {
 
 type Commit = (patch: IssuePatch, overwrite?: boolean) => Promise<ActionResult<{ id: string; updatedAt: string }>>;
 
-function TitleEditor({ issue, commit }: { issue: IssueDTO; commit: Commit }) {
+function TitleEditor({
+  issue,
+  commit,
+  currentUser,
+  onActivity,
+  serverTitleEpoch,
+}: {
+  issue: IssueDTO;
+  commit: Commit;
+  currentUser: UserDTO;
+  onActivity: (activity: ActivityDTO) => void;
+  serverTitleEpoch: number;
+}) {
   const router = useRouter();
   const field = useRef<HTMLTextAreaElement>(null);
+  const acknowledgedTitle = useRef(issue.title);
+  const dirty = useRef(false);
+  const seenEpoch = useRef(serverTitleEpoch);
   const [title, setTitle] = useState(issue.title);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  useEffect(() => setTitle(issue.title), [issue.title]);
+  useEffect(() => {
+    if (seenEpoch.current !== serverTitleEpoch) {
+      seenEpoch.current = serverTitleEpoch;
+      dirty.current = false;
+      acknowledgedTitle.current = issue.title;
+      setTitle(issue.title);
+      return;
+    }
+    if (dirty.current) return;
+    acknowledgedTitle.current = issue.title;
+    setTitle(issue.title);
+  }, [issue.title, serverTitleEpoch]);
 
   useEffect(() => {
     const node = field.current;
@@ -183,10 +224,11 @@ function TitleEditor({ issue, commit }: { issue: IssueDTO; commit: Commit }) {
     node.style.height = `${node.scrollHeight}px`;
   }, [title]);
 
-  async function save() {
-    const next = title.trim();
-    if (!next || next === issue.title) {
-      setTitle(issue.title);
+  async function save(rawValue: string) {
+    const next = rawValue.trim();
+    if (!next || next === acknowledgedTitle.current) {
+      dirty.current = false;
+      setTitle(acknowledgedTitle.current);
       return;
     }
     setPending(true);
@@ -195,6 +237,19 @@ function TitleEditor({ issue, commit }: { issue: IssueDTO; commit: Commit }) {
     if (!result.ok) {
       if (!result.conflict) setError(result.error);
       return;
+    }
+    const from = acknowledgedTitle.current;
+    acknowledgedTitle.current = next;
+    const stillEditing = (field.current?.value ?? next).trim() !== next;
+    dirty.current = stillEditing;
+    if (from !== next) {
+      onActivity({
+        id: `title-${issue.id}-${result.data.updatedAt}`,
+        type: "title_changed",
+        payload: JSON.stringify({ from, to: next }),
+        createdAt: new Date().toISOString(),
+        actor: currentUser,
+      });
     }
     setError(null);
     router.refresh();
@@ -210,8 +265,11 @@ function TitleEditor({ issue, commit }: { issue: IssueDTO; commit: Commit }) {
         id="issue-title"
         value={title}
         rows={1}
-        onChange={(event) => setTitle(event.target.value)}
-        onBlur={save}
+        onChange={(event) => {
+          dirty.current = true;
+          setTitle(event.target.value);
+        }}
+        onBlur={(event) => void save(event.currentTarget.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.preventDefault();
@@ -413,7 +471,8 @@ function CommentSection({
 }
 
 function activityFingerprint(activity: ActivityDTO) {
-  return `${activity.type}|${activity.actor.id}|${describeActivity(activity.type, activity.payload)}`;
+  // Two renames share the description "renamed the issue". The payload's from/to keeps both rows.
+  return `${activity.type}|${activity.actor.id}|${activity.payload}`;
 }
 
 function Properties({
