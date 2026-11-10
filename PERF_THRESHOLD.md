@@ -35,8 +35,14 @@ Local, 2026-11-10, Linux 6.12.113+ x64, Node v22.23.4, Intel Xeon, 4 cores, 1600
 
 ## Problems found
 
-None in this change. The warning path still exits 0, which is the same contract as the 2000 ms gate. One earlier hosted drag had a 50 ms frame max while the board-load median stayed at 587 ms. That is why the frame gap is recorded and is not a warning.
+The warning path still exits 0, which is the same contract as the 2000 ms gate. One earlier hosted drag had a 50 ms frame max while the board-load median stayed at 587 ms. That is why the frame gap is recorded and is not a warning.
+
+On push CI [42860025385](https://github.com/bob1525/linear-build/actions/runs/42860025385), `opens the new issue dialog from the keyboard` failed once and passed on the retry Playwright already allows in CI (`retries: 1`). The first attempt pressed `c` and the New issue dialog was not visible within 10 seconds. The listener is a `window` keydown effect in `src/components/shell.tsx`, and the test does not wait for that effect before pressing the key. This budget change does not touch that test or the shell. The retry was not added or skipped for this run.
+
+The `pull_request` event for `9e5102f` did not create a Performance run, or a second CI run. The push workflow did run.
 
 ## Actions run
 
-Recorded after the Performance workflow for this commit finishes.
+Push CI for `9e5102f`: [42860025385](https://github.com/bob1525/linear-build/actions/runs/42860025385). Workflow conclusion: **success**. Lint, typecheck, and unit tests succeeded (16:58:18Z–16:59:24Z, Vitest **71/71**). Playwright succeeded (16:58:17Z–17:01:31Z) with `1 flaky` and `43 passed`.
+
+The Performance run for the follow-up commit is recorded here once it finishes.
