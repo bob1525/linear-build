@@ -1,4 +1,6 @@
 import type { Priority, Status } from "@/lib/constants";
+import type { IssueFilters } from "@/lib/filters";
+import type { IssueSort, ViewType } from "@/lib/view-state";
 
 export type UserDTO = {
   id: string;
@@ -65,6 +67,15 @@ export type ActivityDTO = {
   payload: string;
   createdAt: string;
   actor: UserDTO;
+};
+
+export type SavedViewDTO = {
+  id: string;
+  name: string;
+  viewType: ViewType;
+  sort: IssueSort;
+  filters: IssueFilters;
+  isDefault: boolean;
 };
 
 export type ProjectSummary = {

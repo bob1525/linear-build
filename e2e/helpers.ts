@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { DEMO_PASSWORD, PRIMARY_DEMO } from "../src/lib/demo-accounts";
 
-export async function login(page: Page, email = PRIMARY_DEMO.email, password = DEMO_PASSWORD) {
+export async function login(page: Page, email: string = PRIMARY_DEMO.email, password: string = DEMO_PASSWORD) {
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);

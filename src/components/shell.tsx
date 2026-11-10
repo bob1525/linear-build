@@ -10,26 +10,11 @@ import { Avatar } from "@/components/avatar";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
 import { BoardIcon, CloseIcon, ListIcon, LogoMark, LogoutIcon, MenuIcon, PlusIcon } from "@/components/icons";
 import { NewIssueDialog } from "@/components/new-issue-dialog";
+import { ProjectSearch } from "@/components/project-search";
 import { ShellContext } from "@/components/shell-context";
 import { Kbd } from "@/components/ui";
 
 type Toast = { id: number; message: string; href?: string };
-
-// The board search field lives inside the page, which can still be the loading
-// skeleton when the shell is already interactive. Keep trying until it mounts
-// (or a refresh swaps it) so "/" focuses the field that actually appears.
-function focusSearch() {
-  const started = performance.now();
-  const attempt = () => {
-    const active = document.activeElement;
-    if (active instanceof HTMLElement && active.matches("input, textarea, select") && !active.matches("[data-search]")) return;
-    const input = document.querySelector<HTMLInputElement>("[data-search]");
-    if (input && document.activeElement !== input) input.focus();
-    if (document.activeElement instanceof HTMLElement && document.activeElement.matches("[data-search]")) return;
-    if (performance.now() - started < 2500) requestAnimationFrame(attempt);
-  };
-  attempt();
-}
 
 export function AppShell({
   user,
@@ -93,7 +78,7 @@ export function AppShell({
       }
       if (event.key === "/") {
         event.preventDefault();
-        focusSearch();
+        document.querySelector<HTMLInputElement>("[data-search]")?.focus();
       }
     }
     window.addEventListener("keydown", onKey);
@@ -178,7 +163,7 @@ export function AppShell({
               <div className="mt-4">
                 <p className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-ink-faint">Views</p>
                 <Link
-                  href={`/p/${current.key}`}
+                  href={`/p/${current.key}?all=1`}
                   className={cn(
                     "flex items-center gap-2 rounded-md px-2 py-1.5 text-ink-muted hover:bg-white/[0.04] hover:text-ink",
                     pathname === `/p/${current.key}` && "bg-white/[0.06] text-ink",
@@ -188,7 +173,7 @@ export function AppShell({
                   Board
                 </Link>
                 <Link
-                  href={`/p/${current.key}/list`}
+                  href={`/p/${current.key}/list?all=1`}
                   className={cn(
                     "mt-0.5 flex items-center gap-2 rounded-md px-2 py-1.5 text-ink-muted hover:bg-white/[0.04] hover:text-ink",
                     pathname.startsWith(`/p/${current.key}/list`) && "bg-white/[0.06] text-ink",
@@ -226,6 +211,11 @@ export function AppShell({
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
+          {projectKey ? (
+            <div className="border-b border-line px-4 py-2">
+              <ProjectSearch />
+            </div>
+          ) : null}
           <div className="flex items-center gap-2 border-b border-line px-3 py-2 md:hidden">
             <button
               type="button"

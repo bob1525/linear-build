@@ -18,6 +18,17 @@ describe("issue ordering", () => {
     expect(groups.backlog).toEqual([]);
     expect(groups.in_progress).toEqual([]);
   });
+
+  it("sorts by newest, title, and due date", () => {
+    const issues = [
+      { id: "old", status: "todo" as const, priority: "low", number: 2, title: "Zebra", dueDate: null },
+      { id: "new", status: "todo" as const, priority: "urgent", number: 9, title: "Alpha", dueDate: "2026-12-01T12:00:00.000Z" },
+      { id: "mid", status: "todo" as const, priority: "high", number: 4, title: "Middle", dueDate: "2026-01-01T12:00:00.000Z" },
+    ];
+    expect(groupByStatus(issues, "newest").todo.map((issue) => issue.id)).toEqual(["new", "mid", "old"]);
+    expect(groupByStatus(issues, "title").todo.map((issue) => issue.id)).toEqual(["new", "mid", "old"]);
+    expect(groupByStatus(issues, "due").todo.map((issue) => issue.id)).toEqual(["mid", "new", "old"]);
+  });
 });
 
 describe("dates and identity helpers", () => {

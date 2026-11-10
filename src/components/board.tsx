@@ -6,6 +6,7 @@ import { DndContext, DragOverlay, PointerSensor, useDroppable, useSensor, useSen
 import { updateIssueAction } from "@/lib/actions/issues";
 import { STATUSES, isStatus, statusLabel, type Status } from "@/lib/constants";
 import { groupByStatus } from "@/lib/issue-view";
+import type { IssueSort } from "@/lib/view-state";
 import { kanbanCollision } from "@/lib/kanban-collision";
 import type { IssueDTO } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -14,7 +15,7 @@ import { StatusIcon } from "@/components/icons";
 
 type PendingMove = { status: Status; previous: Status; ticket: number };
 
-export function Board({ issues, projectKey }: { issues: IssueDTO[]; projectKey: string }) {
+export function Board({ issues, projectKey, sort }: { issues: IssueDTO[]; projectKey: string; sort: IssueSort }) {
   const router = useRouter();
   const [items, setItems] = useState(issues);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -45,7 +46,7 @@ export function Board({ issues, projectKey }: { issues: IssueDTO[]; projectKey: 
     }));
   }, [issues]);
 
-  const groups = groupByStatus(items);
+  const groups = groupByStatus(items, sort);
   const active = items.find((issue) => issue.id === activeId) ?? null;
 
   function onDragEnd(event: DragEndEvent) {

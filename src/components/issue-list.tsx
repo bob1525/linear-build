@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { updateIssueAction } from "@/lib/actions/issues";
 import { STATUSES, statusLabel, type Status } from "@/lib/constants";
 import { compareIssues } from "@/lib/issue-view";
+import type { IssueSort } from "@/lib/view-state";
 import { formatDueDate, isOverdue } from "@/lib/format";
 import type { IssueDTO } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -14,8 +15,8 @@ import { BlockingMarks } from "@/components/blocking-marks";
 import { PriorityIcon, StatusIcon } from "@/components/icons";
 import { Menu, MenuOption } from "@/components/menu";
 
-export function IssueList({ issues, projectKey }: { issues: IssueDTO[]; projectKey: string }) {
-  const sorted = [...issues].sort(compareIssues);
+export function IssueList({ issues, projectKey, sort }: { issues: IssueDTO[]; projectKey: string; sort: IssueSort }) {
+  const sorted = [...issues].sort((left, right) => compareIssues(left, right, sort));
   const [error, setError] = useState<string | null>(null);
 
   return (

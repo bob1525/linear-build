@@ -53,6 +53,35 @@ export const commentSchema = z.object({
   body: z.string().trim().min(1, "Write a comment before posting").max(10_000, "Comment is too long"),
 });
 
+export const viewTypeSchema = z.enum(["board", "list"]);
+export const issueSortSchema = z.enum(["priority", "newest", "title", "due"]);
+
+export const issueFiltersSchema = z.object({
+  statuses: z.array(statusSchema).max(4),
+  priorities: z.array(prioritySchema).max(5),
+  assignees: z.array(z.string()).max(30),
+  labels: z.array(z.string()).max(30),
+  query: z.string().max(200),
+});
+
+export const createViewSchema = z.object({
+  projectKey: z.string().trim().min(1),
+  name: z.string().trim().min(1, "Name the view").max(40, "That name is too long"),
+  viewType: viewTypeSchema,
+  sort: issueSortSchema,
+  filters: issueFiltersSchema,
+});
+
+export const renameViewSchema = z.object({
+  viewId: z.string().min(1),
+  name: z.string().trim().min(1, "Name the view").max(40, "That name is too long"),
+});
+
+export const defaultViewSchema = z.object({
+  viewId: z.string().min(1),
+  isDefault: z.boolean(),
+});
+
 export const relationKindSchema = z.enum(["blocks", "blocked_by", "related", "sub_issue"]);
 
 export const changeRelationSchema = z.object({

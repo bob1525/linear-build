@@ -1,5 +1,6 @@
 import { hasActiveFilters, issueMatchesFilters, toFilterableIssue, type IssueFilters } from "@/lib/filters";
 import type { ProjectPageData } from "@/lib/data";
+import type { IssueSort, ViewType } from "@/lib/view-state";
 import { Board } from "@/components/board";
 import { EmptyState } from "@/components/empty-state";
 import { BoardIcon, SearchIcon } from "@/components/icons";
@@ -12,10 +13,16 @@ export function ProjectScreen({
   data,
   view,
   filters,
+  sort,
+  showAll,
+  activeViewId,
 }: {
   data: ProjectPageData;
-  view: "board" | "list";
+  view: ViewType;
   filters: IssueFilters;
+  sort: IssueSort;
+  showAll: boolean;
+  activeViewId: string | null;
 }) {
   const filtered = data.issues.filter((issue) => issueMatchesFilters(toFilterableIssue(issue), filters));
   return (
@@ -26,8 +33,12 @@ export function ProjectScreen({
         shown={filtered.length}
         total={data.issues.length}
         filters={filters}
+        sort={sort}
+        showAll={showAll}
         members={data.members}
         labels={data.labels}
+        views={data.views}
+        activeViewId={activeViewId}
       />
       <div className="min-h-0 flex-1">
         {data.issues.length === 0 ? (
@@ -45,9 +56,9 @@ export function ProjectScreen({
             action={hasActiveFilters(filters) ? <ClearFilters /> : undefined}
           />
         ) : view === "board" ? (
-          <Board issues={filtered} projectKey={data.project.key} />
+          <Board issues={filtered} projectKey={data.project.key} sort={sort} />
         ) : (
-          <IssueList issues={filtered} projectKey={data.project.key} />
+          <IssueList issues={filtered} projectKey={data.project.key} sort={sort} />
         )}
       </div>
     </div>

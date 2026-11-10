@@ -2,7 +2,8 @@ import { cache } from "react";
 import { getLastProjectKey } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { issueInclude, publicUserSelect, toActivityDTO, toCommentDTO, toIssueDTO, toLabelDTO, toProjectSummary } from "@/lib/dto";
-import type { ActivityDTO, CommentDTO, IssueCandidate, IssueDTO, IssueLinkDTO, IssueRelationGroups, LabelDTO, ProjectSummary, UserDTO } from "@/lib/types";
+import type { ActivityDTO, CommentDTO, IssueCandidate, IssueDTO, IssueLinkDTO, IssueRelationGroups, LabelDTO, ProjectSummary, SavedViewDTO, UserDTO } from "@/lib/types";
+import { parseStoredFilters, parseSort, isViewType } from "@/lib/view-state";
 import { asStatus } from "@/lib/constants";
 import { formatIssueKey } from "@/lib/format";
 
@@ -11,6 +12,7 @@ export type ProjectPageData = {
   issues: IssueDTO[];
   members: UserDTO[];
   labels: LabelDTO[];
+  views: SavedViewDTO[];
 };
 
 export type IssuePageData = {
@@ -90,10 +92,16 @@ function blockingCounts(relations: { type: string; fromIssueId: string; toIssueI
 export const getProjectPage = cache(async (userId: string, projectKey: string): Promise<ProjectPageData | null> => {
   const project = await loadAccessibleProject(userId, projectKey);
   if (!project) return null;
-  const relations = await prisma.issueRelation.findMany({
-    where: { projectId: project.id, type: "blocks" },
-    select: { type: true, fromIssueId: true, toIssueId: true },
-  });
+  const [relations, savedViews] = await Promise.all([
+    prisma.issueRelation.findMany({
+      where: { projectId: project.id, type: "blocks" },
+      select: { type: true, fromIssueId: true, toIssueId: true },
+    }),
+    prisma.savedView.findMany({
+      where: { userId, projectId: project.id },
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+    }),
+  ]);
   const counts = blockingCounts(relations);
   const summary = toProjectSummary(project);
   return {
@@ -106,6 +114,14 @@ export const getProjectPage = cache(async (userId: string, projectKey: string): 
     ),
     members: summary.members,
     labels: summary.labels,
+    views: savedViews.map((view) => ({
+      id: view.id,
+      name: view.name,
+      viewType: isViewType(view.viewType) ? view.viewType : "board",
+      sort: parseSort(view.sort),
+      filters: parseStoredFilters(view.filters),
+      isDefault: view.isDefault,
+    })),
   };
 });
 

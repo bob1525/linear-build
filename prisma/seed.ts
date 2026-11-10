@@ -630,6 +630,7 @@ async function main() {
     throw new Error("DATABASE_URL is required. Copy .env.example to .env and try again.");
   }
 
+  await prisma.savedView.deleteMany();
   await prisma.issueRelation.deleteMany();
   await prisma.issue.updateMany({ data: { parentId: null } });
   await prisma.activity.deleteMany();

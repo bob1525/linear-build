@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { useRef, useTransition, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { PRIORITIES, STATUSES, UNASSIGNED, priorityLabel, statusLabel } from "@/lib/constants";
-import { hasActiveFilters, toSearchParams, type IssueFilters } from "@/lib/filters";
+import { emptyFilters, hasActiveFilters, toSearchParams, type IssueFilters } from "@/lib/filters";
 import type { LabelDTO, UserDTO } from "@/lib/types";
+import { ISSUE_SORTS, type IssueSort } from "@/lib/view-state";
 import { cn } from "@/lib/cn";
 import { LabelPill } from "@/components/avatar";
-import { CloseIcon, PriorityIcon, SearchIcon, StatusIcon } from "@/components/icons";
+import { CloseIcon, PriorityIcon, StatusIcon } from "@/components/icons";
 import { Menu, MenuOption } from "@/components/menu";
-import { Kbd } from "@/components/ui";
 
 function toggleValue<T extends string>(values: T[], value: T): T[] {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
@@ -17,39 +17,40 @@ function toggleValue<T extends string>(values: T[], value: T): T[] {
 
 export function FilterBar({
   filters,
+  sort,
+  showAll,
   members,
   labels,
+  trailing,
 }: {
   filters: IssueFilters;
+  sort: IssueSort;
+  showAll: boolean;
   members: UserDTO[];
   labels: LabelDTO[];
+  trailing?: ReactNode;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const [pending, startTransition] = useTransition();
-  const [text, setText] = useState(filters.query);
   const filtersRef = useRef(filters);
+  const sortRef = useRef(sort);
   filtersRef.current = filters;
+  sortRef.current = sort;
 
-  useEffect(() => {
-    setText(filters.query);
-  }, [filters.query]);
-
-  useEffect(() => {
-    if (text.trim() === filtersRef.current.query) return;
-    const timeout = window.setTimeout(() => {
-      update({ ...filtersRef.current, query: text.trim() });
-    }, 200);
-    return () => window.clearTimeout(timeout);
-    // update is stable enough for the debounced query; filters are read from the ref.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text]);
-
-  function update(next: IssueFilters) {
-    const query = toSearchParams(next).toString();
+  function push(nextFilters: IssueFilters, nextSort: IssueSort, all = false) {
+    const params = toSearchParams(nextFilters);
+    if (nextSort !== "priority") params.set("sort", nextSort);
+    if (all) params.set("all", "1");
+    const query = params.toString();
     startTransition(() => {
       router.push(query ? `${pathname}?${query}` : pathname);
     });
+  }
+
+  function update(next: IssueFilters) {
+    filtersRef.current = next;
+    push(next, sortRef.current);
   }
 
   const active = hasActiveFilters(filters);
@@ -57,21 +58,27 @@ export function FilterBar({
   return (
     <div className={cn("space-y-2", pending && "opacity-80")}>
       <div className="flex flex-wrap items-center gap-2">
-        <label className="relative min-w-[200px] flex-1 sm:max-w-xs">
-          <span className="sr-only">Search issues</span>
-          <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-faint" />
-          <input
-            data-search
-            data-testid="search"
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            placeholder="Search title, description, or ID"
-            className="h-8 w-full rounded-md border border-line bg-black/20 pl-8 pr-10 text-[13px] outline-none placeholder:text-ink-faint focus:border-accent/80"
-          />
-          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
-            <Kbd>/</Kbd>
-          </span>
+        <label className="sr-only" htmlFor="issue-sort">
+          Sort
         </label>
+        <select
+          id="issue-sort"
+          data-testid="sort"
+          aria-label="Sort"
+          value={sort}
+          onChange={(event) => {
+            const nextSort = event.target.value as IssueSort;
+            sortRef.current = nextSort;
+            push(filtersRef.current, nextSort, showAll && !hasActiveFilters(filtersRef.current));
+          }}
+          className="h-8 rounded-md border border-line bg-black/20 px-2 text-[12px] text-ink outline-none focus:border-accent/80"
+        >
+          {ISSUE_SORTS.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.label}
+            </option>
+          ))}
+        </select>
         <FilterButton
           testId="filter-status"
           label="Status"
@@ -152,15 +159,13 @@ export function FilterBar({
         {active ? (
           <button
             type="button"
-            onClick={() => {
-              setText("");
-              update({ statuses: [], priorities: [], assignees: [], labels: [], query: "" });
-            }}
+            onClick={() => push(emptyFilters(), "priority", true)}
             className="h-8 rounded-md px-2 text-[12px] text-ink-muted hover:bg-white/5 hover:text-ink"
           >
             Clear filters
           </button>
         ) : null}
+        {trailing}
       </div>
       {active ? (
         <div className="flex flex-wrap gap-1.5">
@@ -190,7 +195,7 @@ export function FilterBar({
             );
           })}
           {filters.query ? (
-            <Chip onRemove={() => { setText(""); update({ ...filters, query: "" }); }}>
+            <Chip onRemove={() => update({ ...filters, query: "" })}>
               “{filters.query}”
             </Chip>
           ) : null}

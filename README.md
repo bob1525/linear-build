@@ -13,6 +13,7 @@ Northstar is a lightweight issue tracker for product teams. It covers the everyd
 - Kanban board with drag-and-drop between columns, plus a list view with inline status changes.
 - Issue page with rendered Markdown (including tables), comments, and an activity log of who changed what and when.
 - Relations on an issue: blocks, blocked by, and related to, plus one level of sub-issues. Blocking issues are marked on the board and the list. A blocking cycle is rejected.
+- Saved views store the current filters, sort, and Board or List choice. Each person has their own views, can rename or delete them, and can mark one as the default for a project.
 - Filters that combine: status, priority, assignee (including unassigned), label, and keyword search across the key, title, and description. Filters stay in the URL.
 - Keyboard shortcuts: `C` opens a new issue, `/` focuses search, `Esc` closes menus and dialogs, and `⌘/Ctrl+Enter` submits the issue and comment composers.
 - Empty, loading, and error states for a new workspace, an empty project, a filter with no matches, and a failed page.

@@ -10,7 +10,7 @@ export function ClearFilters() {
     <Button
       variant="subtle"
       onClick={() => {
-        router.push(pathname);
+        router.push(`${pathname}?all=1`);
       }}
     >
       Clear filters

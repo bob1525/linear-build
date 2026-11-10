@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { toSearchParams, type IssueFilters } from "@/lib/filters";
-import type { LabelDTO, ProjectSummary, UserDTO } from "@/lib/types";
+import type { LabelDTO, ProjectSummary, SavedViewDTO, UserDTO } from "@/lib/types";
+import { type IssueSort, type ViewType } from "@/lib/view-state";
 import { cn } from "@/lib/cn";
 import { FilterBar } from "@/components/filter-bar";
+import { SavedViews } from "@/components/saved-views";
 import { BoardIcon, ListIcon } from "@/components/icons";
 import { NewIssueButton } from "@/components/shell-context";
 
@@ -13,19 +15,29 @@ export function ViewHeader({
   shown,
   total,
   filters,
+  sort,
+  showAll,
   members,
   labels,
+  views,
+  activeViewId,
 }: {
   project: ProjectSummary;
-  view: "board" | "list";
+  view: ViewType;
   shown: number;
   total: number;
   filters: IssueFilters;
+  sort: IssueSort;
+  showAll: boolean;
   members: UserDTO[];
   labels: LabelDTO[];
+  views: SavedViewDTO[];
+  activeViewId: string | null;
 }) {
-  const query = toSearchParams(filters).toString();
-  const suffix = query ? `?${query}` : "";
+  const params = toSearchParams(filters);
+  if (sort !== "priority") params.set("sort", sort);
+  if (showAll) params.set("all", "1");
+  const suffix = params.toString() ? `?${params.toString()}` : "";
   return (
     <header className="relative border-b border-line px-4 py-3 sm:px-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -46,7 +58,23 @@ export function ViewHeader({
         </div>
       </div>
       <div className="mt-3">
-        <FilterBar filters={filters} members={members} labels={labels} />
+        <FilterBar
+          filters={filters}
+          sort={sort}
+          showAll={showAll}
+          members={members}
+          labels={labels}
+          trailing={
+            <SavedViews
+              projectKey={project.key}
+              viewType={view}
+              sort={sort}
+              filters={filters}
+              views={views}
+              activeViewId={activeViewId}
+            />
+          }
+        />
       </div>
     </header>
   );

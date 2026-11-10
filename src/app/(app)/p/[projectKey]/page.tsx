@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { getProjectPage } from "@/lib/data";
-import { parseFilters } from "@/lib/filters";
+import { openProjectView } from "@/lib/open-project";
 import { requireUser } from "@/lib/session";
 import { ProjectScreen } from "@/components/project-screen";
 
@@ -21,7 +19,6 @@ export default async function BoardPage({
   searchParams: Promise<Search>;
 }) {
   const [{ projectKey }, sp, user] = await Promise.all([params, searchParams, requireUser()]);
-  const data = await getProjectPage(user.id, projectKey);
-  if (!data) notFound();
-  return <ProjectScreen data={data} view="board" filters={parseFilters(sp)} />;
+  const screen = await openProjectView(user.id, projectKey, sp, "board");
+  return <ProjectScreen {...screen} />;
 }
