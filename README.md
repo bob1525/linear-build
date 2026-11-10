@@ -38,7 +38,7 @@ Issue detail, with Markdown, comments, properties, and activity:
 
 ![Issue detail](docs/screenshots/issue-detail.png)
 
-Board cards mark blocking relationships. ORB-3 blocks ORB-2, so the Todo column shows Blocks and Blocked:
+The Todo column on Orbit. ORB-3 shows Blocks and ORB-2 shows Blocked:
 
 ![Board with relation markers](docs/screenshots/board-with-relations.png)
 

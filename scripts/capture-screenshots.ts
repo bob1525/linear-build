@@ -1,5 +1,6 @@
+import { createHash } from "node:crypto";
 import path from "node:path";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { PrismaClient } from "@prisma/client";
 import { chromium, type Browser, type Page } from "@playwright/test";
 import { DEMO_PASSWORD, DEMO_USERS, PRIMARY_DEMO } from "../src/lib/demo-accounts";
@@ -19,6 +20,48 @@ async function signIn(page: Page, email: string = PRIMARY_DEMO.email) {
 async function shot(page: Page, name: string) {
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${outDir}/${name}` });
+}
+
+async function sha256(name: string) {
+  const bytes = await readFile(path.join(outDir, name));
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+async function waitForToastsToClear(page: Page) {
+  const status = page.getByRole("status");
+  const deadline = Date.now() + 8000;
+  while (Date.now() < deadline) {
+    if ((await status.count()) === 0) return;
+    await status.first().waitFor({ state: "hidden", timeout: deadline - Date.now() });
+  }
+  throw new Error("A status toast was still visible");
+}
+
+async function captureRelationColumn(page: Page) {
+  const column = page.getByTestId("column-todo");
+  const blocks = page.locator("article[data-blocks='true']").first();
+  const blocked = page.locator("article[data-blocked='true']").first();
+  await blocks.waitFor();
+  await blocked.waitFor();
+  await blocks.scrollIntoViewIfNeeded();
+  await blocked.scrollIntoViewIfNeeded();
+  const columnBox = await column.boundingBox();
+  const blockedBox = await blocked.boundingBox();
+  if (!columnBox || !blockedBox) throw new Error("The Todo column is not visible");
+  const height = blockedBox.y + blockedBox.height - columnBox.y + 8;
+  if (height <= 0 || height > columnBox.height) throw new Error("The relation crop does not cover the Blocked card");
+  await page.waitForTimeout(300);
+  await page.screenshot({
+    path: `${outDir}/board-with-relations.png`,
+    clip: { x: columnBox.x, y: columnBox.y, width: columnBox.width, height },
+  });
+  const boardHash = await sha256("board.png");
+  const relationsHash = await sha256("board-with-relations.png");
+  if (boardHash === relationsHash) {
+    throw new Error("board-with-relations.png is still identical to board.png");
+  }
+  console.log(`board.png ${boardHash}`);
+  console.log(`board-with-relations.png ${relationsHash}`);
 }
 
 async function deleteByTitle(fragment: string) {
@@ -60,7 +103,9 @@ async function captureConflict(browser: Browser) {
     await ava.getByLabel("Title").fill("Conflict shot from Ava");
     await ava.getByLabel("Title").press("Enter");
     await ava.getByTestId("conflict-prompt").waitFor();
+    await waitForToastsToClear(ava);
     await shot(ava, "conflict-dialog.png");
+    console.log(`conflict-dialog.png ${await sha256("conflict-dialog.png")}`);
   } finally {
     await avaContext.close();
     await marcusContext.close();
@@ -91,6 +136,18 @@ async function captureMobile(browser: Browser) {
 async function main() {
   await mkdir(outDir, { recursive: true });
   const browser = await chromium.launch();
+  if (process.argv.includes("--fixes")) {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+    await signIn(page);
+    await page.goto(`${baseURL}/p/ORB?all=1`, { waitUntil: "networkidle" });
+    await page.getByRole("heading", { name: "Orbit" }).waitFor();
+    await captureRelationColumn(page);
+    await page.close();
+    await captureConflict(browser);
+    await browser.close();
+    console.log(`Wrote screenshots to ${outDir}`);
+    return;
+  }
   if (process.argv.includes("--mobile")) {
     await captureMobile(browser);
     await browser.close();
@@ -108,14 +165,7 @@ async function main() {
   await page.waitForURL("**/p/ORB");
   await page.getByRole("heading", { name: "Orbit" }).waitFor();
   await shot(page, "board.png");
-
-  const blocked = page.locator("[data-blocked='true']").first();
-  const blocks = page.locator("[data-blocks='true']").first();
-  await blocked.waitFor();
-  await blocks.waitFor();
-  await blocked.scrollIntoViewIfNeeded();
-  await blocks.scrollIntoViewIfNeeded();
-  await shot(page, "board-with-relations.png");
+  await captureRelationColumn(page);
 
   await page.getByTestId("filter-status").click();
   await page.getByRole("option", { name: "Todo" }).click();
