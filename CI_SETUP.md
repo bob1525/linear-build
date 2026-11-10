@@ -68,7 +68,7 @@ Pushing that commit started Actions run [42841709016](https://github.com/bob1525
 
 A second run, [42841891655](https://github.com/bob1525/linear-build/actions/runs/42841891655), was queued by the `pull_request` event for the same push. It was still in progress when the push run finished. Both events are configured, so one push to this pull-request branch starts two workflows.
 
-On the pull request, open the Checks tab. Both `Lint, typecheck, and unit tests` and `Playwright` are required. The run linked above stayed green only because Playwright was allowed to fail. That allowance has been removed.
+On the pull request, open the Checks tab. Both `Lint, typecheck, and unit tests` and `Playwright` are required. Run 42841709016 stayed green only because Playwright was allowed to fail. That allowance was removed before run 42845752938, and both jobs passed there.
 
 ## Known issue resolved
 
@@ -102,4 +102,11 @@ After the fix, on this machine (Node v22.23.4):
 | Solo conflict test, 8 runs | **8 passed, 0 failed** |
 | `npm run test:e2e` | **42 passed** (1.2 minutes of tests), including `the later saver of an issue gets a conflict prompt` |
 
-The Actions run for the commit that removes `continue-on-error` is the required-gate confirmation. It is recorded here after that run finishes.
+The Actions run for the commit that removes `continue-on-error` is [42845752938](https://github.com/bob1525/linear-build/actions/runs/42845752938) (`push`, head `5cbb450`, created 2026-11-10T15:34:30Z, finished 2026-11-10T15:37:02Z). Workflow conclusion: **success**. Both jobs are required.
+
+| Job | Conclusion | What it did |
+| --- | --- | --- |
+| Lint, typecheck, and unit tests | success (39s, 15:34:32Z–15:35:11Z) | `npm ci`, lint, `tsc --noEmit`, and Vitest passed |
+| Playwright | success (2m29s, 15:34:32Z–15:37:01Z) | Chromium installed. `npm run test:e2e` passed, including the conflict-prompt test |
+
+No job failed. Playwright is a required gate on this run, not `continue-on-error`.
