@@ -9,6 +9,16 @@ export const DEMO_USERS = [
 
 export const PRIMARY_DEMO = DEMO_USERS[0];
 
+export const DRAG_LAB = {
+  key: "RLY",
+  name: "Relay",
+  backlog: (index: number) => `Relay backlog ${String(index).padStart(2, "0")}`,
+  short: "Relay short todo",
+  done: (index: number) => `Relay done ${String(index).padStart(2, "0")}`,
+  backlogCount: 12,
+  doneCount: 8,
+} as const;
+
 export const FIXTURES = {
   projectKey: "ORB",
   zephyrTitle: "Zephyr cache returns stale issue counts",

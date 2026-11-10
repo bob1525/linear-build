@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { DEFAULT_LABELS } from "../src/lib/constants";
-import { DEMO_PASSWORD, DEMO_USERS, FIXTURES } from "../src/lib/demo-accounts";
+import { DEMO_PASSWORD, DEMO_USERS, DRAG_LAB, FIXTURES } from "../src/lib/demo-accounts";
 import { hashPassword } from "../src/lib/password";
 
 const prisma = new PrismaClient();
@@ -564,6 +564,25 @@ const atlasIssues: SeedIssue[] = [
   },
 ];
 
+function relayIssue(title: string, status: Status): SeedIssue {
+  return {
+    title,
+    description: text("Drag-lab fixture for scroll, empty-column, and repeated moves."),
+    status,
+    priority: "medium",
+    assignee: ava,
+    dueInDays: 4,
+    labels: ["Bug"],
+    createdDaysAgo: 6,
+  };
+}
+
+const relayIssues: SeedIssue[] = [
+  ...Array.from({ length: DRAG_LAB.backlogCount }, (_, index) => relayIssue(DRAG_LAB.backlog(index + 1), "backlog")),
+  relayIssue(DRAG_LAB.short, "todo"),
+  ...Array.from({ length: DRAG_LAB.doneCount }, (_, index) => relayIssue(DRAG_LAB.done(index + 1), "done")),
+];
+
 const projects = [
   {
     key: "ORB",
@@ -588,6 +607,14 @@ const projects = [
     color: "#f2c94c",
     sortOrder: 2,
     issues: atlasIssues,
+  },
+  {
+    key: DRAG_LAB.key,
+    name: DRAG_LAB.name,
+    description: "Drag lab: a long backlog, a short todo column, an empty in-progress column, and a scrollable done column.",
+    color: "#bb87fc",
+    sortOrder: 3,
+    issues: relayIssues,
   },
 ];
 

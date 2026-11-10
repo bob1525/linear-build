@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useDraggable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
 import type { IssueDTO } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { isOverdue, formatDueDate } from "@/lib/format";
@@ -24,11 +23,10 @@ export function IssueCard({
 }
 
 function DraggableCard({ issue, projectKey }: { issue: IssueDTO; projectKey: string }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: issue.id });
-  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: issue.id });
   return (
-    <div ref={setNodeRef} style={style} className={cn(isDragging && "opacity-40")}>
-      <CardFace issue={issue} projectKey={projectKey} dragHandle={{ attributes, listeners }} />
+    <div ref={setNodeRef}>
+      <CardFace issue={issue} projectKey={projectKey} placeholder={isDragging} dragHandle={{ attributes, listeners }} />
     </div>
   );
 }
@@ -37,11 +35,13 @@ function CardFace({
   issue,
   projectKey,
   overlay = false,
+  placeholder = false,
   dragHandle,
 }: {
   issue: IssueDTO;
   projectKey: string;
   overlay?: boolean;
+  placeholder?: boolean;
   dragHandle?: {
     attributes: ReturnType<typeof useDraggable>["attributes"];
     listeners: ReturnType<typeof useDraggable>["listeners"];
@@ -52,7 +52,12 @@ function CardFace({
   return (
     <article
       data-testid={`card-${issue.key}`}
-      className={cn("rounded-lg border border-line bg-panel shadow-card", overlay && "rotate-[1.5deg] shadow-pop")}
+      data-placeholder={placeholder ? "true" : undefined}
+      className={cn(
+        "rounded-lg border border-line bg-panel shadow-card",
+        overlay && "rotate-[1.5deg] shadow-pop",
+        placeholder && "border-dashed border-accent/70 bg-accent/5 opacity-50",
+      )}
     >
       <div className="flex items-start gap-1 p-2">
         {dragHandle ? (

@@ -55,7 +55,7 @@ The seed data creates four people, all with the password `demo1234`.
 | Priya Nair | priya@northstar.dev |
 | Leo Park | leo@northstar.dev |
 
-Sign in as Ava to land on **Orbit** (`ORB`). The other seeded projects are **Pulse** (`PLS`) and **Atlas** (`ATL`). Together they contain 46 issues, with labels, assignees, due dates, comments, and activity.
+Sign in as Ava to land on **Orbit** (`ORB`). The other seeded projects are **Pulse** (`PLS`), **Atlas** (`ATL`), and **Relay** (`RLY`, a drag lab with a long column, a short column, and an empty column). Together they contain 67 issues, with labels, assignees, due dates, comments, and activity.
 
 The sign-in page includes a **Fill demo** button that enters Ava’s email and password.
 
@@ -99,7 +99,7 @@ npm test
 npm run test:e2e
 ```
 
-`npm test` runs the Vitest unit suite (filters, activity copy, validation, ordering, password hashing).
+`npm test` runs the Vitest unit suite (filters, activity copy, validation, ordering, password hashing, and kanban column hit-testing).
 
 `npm run test:e2e` resets a separate SQLite file (`prisma/e2e.db`), builds the production app, and runs Playwright against http://127.0.0.1:3100. Stop `npm run dev` first. The dev server and the production build share the `.next` directory.
 
