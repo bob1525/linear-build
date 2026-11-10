@@ -138,3 +138,52 @@ npm run test:e2e
 The end-to-end suite covers sign-in and sign-up, combined filters, project switching, list and detail status changes, Markdown comments, creating an issue, dragging a card between columns, relations, saved views, batch edits, the concurrent-edit prompt, empty and unauthorized projects, and the `C` / `/` shortcuts.
 
 `npm run perf` repeats the 500-issue timings in `PERFORMANCE.md`: it rebuilds `prisma/perf.db`, makes a production build, and prints board, filter, and drag numbers. It does not replace the demo seed. `npm run db:perf` only rebuilds that database. A pull request also runs this check and warns if the board-load median is not under 2000 ms.
+
+## Production deployment
+
+Northstar is a Next.js server plus one SQLite file. Run it as a single long-lived Node process. Do not put several writers on that file, and do not expect the file to survive on a serverless host.
+
+### Required environment
+
+| Variable | Required | What it does |
+| --- | --- | --- |
+| `DATABASE_URL` | Yes | Prisma connection string. The schema is SQLite only. A `file:` path is resolved relative to the `prisma/` directory. For a real deploy, point it at an absolute path on a persistent disk, for example `file:/var/lib/northstar/prod.db`. |
+| `NODE_ENV` | Set by `next start` | `production` marks the `ns_session` cookie `Secure`. |
+
+That is the whole application environment. `.env.example` contains only `DATABASE_URL`. There is no `AUTH_SECRET`. A session is 32 random bytes stored in the `Session` table, sent in the httpOnly cookie `ns_session` (SameSite=Lax, 30 days). `next build` still needs `DATABASE_URL` to be set, even though pages render on demand.
+
+### SQLite limits
+
+- One process owns the file. Do not run two copies of `next start`, and do not put a load balancer in front of several replicas that write the same file. SQLite is not a multi-replica writer.
+- The file has to be on a persistent disk. Replacing a container that has no volume throws the database away.
+- This repo applies the schema with `prisma db push`. There is no migration history. Changing the schema on a live file is a manual `npx prisma db push` against that file, with a backup first.
+- Copy the file for a backup while the process is stopped. A copy taken during writes can be incomplete.
+
+### One Node process
+
+This is the deployment that matches the database.
+
+```bash
+npm ci
+cp .env.example .env
+# Set DATABASE_URL to an absolute file on a persistent disk.
+npx prisma db push
+npm run build
+npm run start
+```
+
+`npm run start` is `next start`. It listens on port 3000 unless you pass `-p`. Put TLS on a reverse proxy in front of that single process. Do not scale the process out.
+
+Do not run `npm run db:seed` or `npm run db:setup` on the production file unless you mean to replace every row with the demo workspace.
+
+### Vercel and other serverless hosts
+
+Vercel can build this Next.js app. It cannot host this SQLite file. Serverless instances do not share a writable disk, `/tmp` disappears, and each instance would see its own empty or stale database. A later request can land on a different instance and miss the write. Two instances writing one SQLite file is the case this app does not support.
+
+Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A public multi-instance deploy needs a database that accepts many connections, which means changing the Prisma datasource off SQLite. This repository does not do that. Until it does, run `next start` on one machine.
+
+### Change these before the site is public
+
+- The seed creates Ava Chen, Marcus Hale, Priya Nair, and Leo Park, all with the password `demo1234`. Those accounts are fixtures. On a public server, start from an empty file, or change every password and delete the accounts you do not want.
+- The sign-in page prints `ava@northstar.dev · demo1234` and offers a Fill demo button (`src/components/auth-form.tsx`). Remove that block before the site is public.
+- Sign-in has no rate limit, no email verification, and no password reset. Passwords are bcrypt with 10 rounds. Treat the accounts as demo-grade until that changes.
