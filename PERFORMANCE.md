@@ -2,13 +2,39 @@
 
 Measured against a production build (`next start`) and a separate SQLite file. The demo seed is still 67 issues. This dataset is project `PERF`: 500 issues, 125 in each status, priorities cycling through none, low, medium, high, and urgent (100 high). Titles are `Perf 001` through `Perf 500`.
 
+## How to reproduce
+
+Install Chromium once (`npx playwright install chromium`), then:
+
 ```bash
-npm run db:perf
-DATABASE_URL=file:./perf.db npx next start -p 3200
-PERF_BASE_URL=http://127.0.0.1:3200 npx tsx scripts/measure-perf.ts
+npm run perf
 ```
 
-Viewport 1440×900, Chromium. Each figure below is from that run.
+That command rebuilds `prisma/perf.db`, runs `next build`, starts the app on http://127.0.0.1:3200, runs `scripts/measure-perf.ts`, and stops the server. It does not replace the demo database. The script signs in as `perf@northstar.dev`, loads `/p/PERF?all=1` three times, times the keyword and High filters, and drags two cards. The printed JSON includes the machine: OS, CPU model, core count, memory, Node version, and the GitHub-hosted runner name when Actions sets it.
+
+`PERF_PORT` changes the port (default 3200). `PERF_BOARD_LOAD_BUDGET_MS` changes the warning line (default 2000). A board-load median under that budget prints `status=ok`. A median that is not under it prints `status=warn` and a `::warning::` line, and the command still exits 0.
+
+## Automation
+
+`.github/workflows/perf.yml` runs `npm run perf` on pull requests and on manual dispatch. The job is the 500-issue measurement, not the unit or end-to-end suite. Crossing the board-load budget logs a warning and leaves the job green. A failed seed, build, or measurement fails the job.
+
+## Command run on this agent
+
+`npm run perf` on 2026-11-10, before the Actions run. Linux 6.12.113+ x64, Node v22.23.4, Intel Xeon, 4 cores, 16003 MB. GitHub runner fields were empty because this was not Actions. The board still showed 500 issues. Board-load samples were 551, 438, and 490 ms.
+
+| Measurement | Median |
+| --- | ---: |
+| Board load | 490 ms |
+| Keyword filter (`Perf 250`, 1 issue, includes the 200 ms debounce) | 268 ms |
+| Priority filter (High, 100 issues) | 137 ms |
+
+Both drags stayed at a 16.7 ms median frame gap and were in Done within 19 ms of release. The summary line was `PERF boardLoadMedianMs=490 budgetMs=2000 status=ok`.
+
+A second run with `PERF_BOARD_LOAD_BUDGET_MS=1` printed `status=warn` and `::warning title=Board load::Board load median 505 ms is not under 1 ms.` The process exited 0.
+
+## Recorded run
+
+The tables below are the Stage 5 measurement. That run did not record CPU or memory. Viewport 1440×900, Chromium. Each figure is from that run.
 
 ## Board load
 
@@ -54,6 +80,8 @@ Median: **151 ms**.
 | Perf 006 | 534 ms | 26 ms | 38 | 16.7 ms | 16.8 ms | 16.8 ms |
 
 16.7 ms is one frame at 60 Hz. The first drag dropped a single frame. Both cards were in Done within 27 ms of release.
+
+The repeatable command measures the same three board loads, three keyword filters, three priority filters, and two drags. Compare a new JSON report with the medians above: board load 507 ms, keyword filter 299 ms, priority filter 151 ms.
 
 ## What was changed
 

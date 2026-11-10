@@ -1,7 +1,9 @@
+import os from "node:os";
 import { chromium, type Page } from "playwright";
 import { DEMO_PASSWORD } from "../src/lib/demo-accounts";
 
 const baseURL = process.env.PERF_BASE_URL ?? "http://127.0.0.1:3200";
+const boardLoadBudgetMs = Number(process.env.PERF_BOARD_LOAD_BUDGET_MS ?? "2000");
 
 function median(values: number[]) {
   const sorted = [...values].sort((a, b) => a - b);
@@ -148,7 +150,24 @@ async function dragOnce(page: Page, title: string) {
   };
 }
 
+function environment() {
+  const cpus = os.cpus();
+  return {
+    platform: `${os.platform()} ${os.release()} ${os.arch()}`,
+    node: process.version,
+    cpuModel: cpus[0]?.model ?? "unknown",
+    cpuCount: cpus.length,
+    memoryMb: Math.round(os.totalmem() / (1024 * 1024)),
+    runnerOs: process.env.RUNNER_OS ?? null,
+    runnerArch: process.env.RUNNER_ARCH ?? null,
+    runnerName: process.env.RUNNER_NAME ?? null,
+  };
+}
+
 async function main() {
+  if (!Number.isFinite(boardLoadBudgetMs) || boardLoadBudgetMs <= 0) {
+    throw new Error("PERF_BOARD_LOAD_BUDGET_MS must be a positive number");
+  }
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await login(page);
@@ -156,12 +175,17 @@ async function main() {
   const searches = [await filterBySearch(page), await filterBySearch(page), await filterBySearch(page)];
   const priorities = [await filterByPriority(page), await filterByPriority(page), await filterByPriority(page)];
   const drags = [await dragOnce(page, "Perf 002"), await dragOnce(page, "Perf 006")];
+  const boardLoadMedianMs = median(loads.map((item) => item.elapsed));
+  const withinBudget = boardLoadMedianMs < boardLoadBudgetMs;
   const report = {
     baseURL,
     viewport: "1440x900",
+    environment: environment(),
     issues: loads[0]?.issues ?? 0,
     boardLoadMs: loads.map((item) => item.elapsed),
-    boardLoadMedianMs: median(loads.map((item) => item.elapsed)),
+    boardLoadMedianMs,
+    boardLoadBudgetMs,
+    boardLoadWithinBudget: withinBudget,
     navigation: loads,
     searchFilterMs: searches.map((item) => item.elapsed),
     searchFilterMedianMs: median(searches.map((item) => item.elapsed)),
@@ -172,6 +196,13 @@ async function main() {
     drags,
   };
   console.log(JSON.stringify(report, null, 2));
+  const status = withinBudget ? "ok" : "warn";
+  console.warn(`PERF boardLoadMedianMs=${boardLoadMedianMs} budgetMs=${boardLoadBudgetMs} status=${status}`);
+  if (!withinBudget) {
+    console.warn(
+      `::warning title=Board load::Board load median ${boardLoadMedianMs} ms is not under ${boardLoadBudgetMs} ms.`,
+    );
+  }
   await browser.close();
 }
 
