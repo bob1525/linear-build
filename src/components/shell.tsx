@@ -102,7 +102,7 @@ export function AppShell({
           <button
             type="button"
             aria-label="Close menu"
-            className="fixed inset-0 z-30 bg-black/50 md:hidden"
+            className="fixed inset-y-0 right-0 left-[248px] z-30 bg-black/50 md:hidden"
             onClick={() => setNavOpen(false)}
           />
         ) : null}

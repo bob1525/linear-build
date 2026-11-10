@@ -68,9 +68,35 @@ async function captureConflict(browser: Browser) {
   }
 }
 
+async function captureMobile(browser: Browser) {
+  const context = await browser.newContext({
+    viewport: { width: 375, height: 812 },
+    deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  try {
+    await signIn(page);
+    await page.goto(`${baseURL}/p/ORB?all=1`, { waitUntil: "networkidle" });
+    await page.getByRole("heading", { name: "Orbit" }).waitFor();
+    await page.getByRole("button", { name: "Open menu" }).waitFor();
+    await page.getByTestId("column-backlog").locator("article").first().waitFor();
+    await shot(page, "board-mobile.png");
+  } finally {
+    await context.close();
+  }
+}
+
 async function main() {
   await mkdir(outDir, { recursive: true });
   const browser = await chromium.launch();
+  if (process.argv.includes("--mobile")) {
+    await captureMobile(browser);
+    await browser.close();
+    console.log(`Wrote screenshots to ${outDir}`);
+    return;
+  }
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
 
   await page.goto(`${baseURL}/login`, { waitUntil: "networkidle" });
@@ -143,6 +169,7 @@ async function main() {
   await shot(page, "relay-drag-lab.png");
 
   await page.close();
+  await captureMobile(browser);
   await captureConflict(browser);
 
   await browser.close();

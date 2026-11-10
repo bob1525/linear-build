@@ -62,6 +62,10 @@ Relay is the drag lab: a long Backlog, one Todo card, an empty In Progress colum
 
 ![Relay drag lab](docs/screenshots/relay-drag-lab.png)
 
+At a phone width the sidebar is closed until you open it, and the board scrolls sideways with a card still on screen:
+
+![Mobile board](docs/screenshots/board-mobile.png)
+
 ## Tech stack
 
 - Next.js 15 App Router, React 19, TypeScript
