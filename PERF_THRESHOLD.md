@@ -39,10 +39,21 @@ The warning path still exits 0, which is the same contract as the 2000 ms gate. 
 
 On push CI [42860025385](https://github.com/bob1525/linear-build/actions/runs/42860025385), `opens the new issue dialog from the keyboard` failed once and passed on the retry Playwright already allows in CI (`retries: 1`). The first attempt pressed `c` and the New issue dialog was not visible within 10 seconds. The listener is a `window` keydown effect in `src/components/shell.tsx`, and the test does not wait for that effect before pressing the key. This budget change does not touch that test or the shell. The retry was not added or skipped for this run.
 
-The `pull_request` event for `9e5102f` did not create a Performance run, or a second CI run. The push workflow did run.
+The pull-request workflows for `9e5102f` were created late. Performance run [42860822378](https://github.com/bob1525/linear-build/actions/runs/42860822378) was then cancelled because the next commit started a run for the same pull request. The completed run is the one below. It uses the same 1200 ms budget.
 
 ## Actions run
 
 Push CI for `9e5102f`: [42860025385](https://github.com/bob1525/linear-build/actions/runs/42860025385). Workflow conclusion: **success**. Lint, typecheck, and unit tests succeeded (16:58:18Z–16:59:24Z, Vitest **71/71**). Playwright succeeded (16:58:17Z–17:01:31Z) with `1 flaky` and `43 passed`.
 
-The Performance run for the follow-up commit is recorded here once it finishes.
+Performance for `7fd8926`: [42860934498](https://github.com/bob1525/linear-build/actions/runs/42860934498) (`pull_request`, 2026-11-10). Workflow conclusion: **success**. Board load job succeeded (17:03:42Z–17:05:38Z).
+
+Runner: `ubuntu-latest`, Linux 7.0.0-1019-azure x64, Node v22.23.4, AMD EPYC 7763, 4 cores, 15983 MB.
+
+| Measurement | Result |
+| --- | --- |
+| Board load | samples 582, 578, 587 ms. Median **582 ms**. `budgetMs=1200` `status=ok`. 500 issues |
+| Keyword filter | median 336 ms |
+| Priority filter | median 261 ms |
+| Drag frame gap | `dragFrameP50Ms=16.7,16.7` `dragFrameMaxMs=49.9,50` |
+
+Log line: `PERF boardLoadMedianMs=582 budgetMs=1200 status=ok dragFrameP50Ms=16.7,16.7 dragFrameMaxMs=49.9,50`. No `::warning::`. The 50 ms frame max did not change the job result.
