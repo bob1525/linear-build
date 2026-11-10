@@ -4,11 +4,16 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { loginAction, signupAction } from "@/lib/actions/auth";
-import { DEMO_PASSWORD, DEMO_USERS, PRIMARY_DEMO } from "@/lib/demo-accounts";
 import { LogoMark } from "@/components/icons";
 import { Button, ErrorNote, Field, TextField } from "@/components/ui";
 
-export function AuthForm({ mode }: { mode: "login" | "signup" }) {
+export function AuthForm({
+  mode,
+  demo,
+}: {
+  mode: "login" | "signup";
+  demo?: { email: string; password: string; accounts: { name: string; email: string }[] };
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -42,8 +47,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }
 
   function useDemo() {
-    setEmail(PRIMARY_DEMO.email);
-    setPassword(DEMO_PASSWORD);
+    if (!demo) return;
+    setEmail(demo.email);
+    setPassword(demo.password);
   }
 
   return (
@@ -96,13 +102,13 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
               {pending ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
             </Button>
           </form>
-          {mode === "login" ? (
+          {mode === "login" && demo ? (
             <div className="mt-4 rounded-lg border border-dashed border-line px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[12px] font-medium text-ink">Demo workspace</p>
                   <p className="text-[12px] text-ink-muted">
-                    {PRIMARY_DEMO.email} · {DEMO_PASSWORD}
+                    {demo.email} · {demo.password}
                   </p>
                 </div>
                 <Button variant="subtle" size="sm" data-testid="demo-login" onClick={useDemo}>
@@ -110,7 +116,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
                 </Button>
               </div>
               <ul className="mt-2 space-y-0.5 text-[11px] text-ink-faint">
-                {DEMO_USERS.map((user) => (
+                {demo.accounts.map((user) => (
                   <li key={user.email}>
                     {user.name} · {user.email}
                   </li>

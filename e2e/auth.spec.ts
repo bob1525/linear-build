@@ -44,3 +44,41 @@ test("demo hint matches the documented password", async ({ page }) => {
   await page.getByTestId("demo-login").click();
   await expect(page.getByLabel("Email")).toHaveValue(PRIMARY_DEMO.email);
 });
+
+test("blocks a run of bad passwords for one email", async ({ page }) => {
+  const email = `limited.${Date.now()}@example.com`;
+  await page.goto("/login");
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Password").fill("not-the-password");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByText("Invalid email or password")).toBeVisible();
+  }
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill("not-the-password");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByText("Too many attempts. Try again in a few minutes.")).toBeVisible();
+});
+
+test("blocks repeated registration of one email", async ({ page }) => {
+  const email = `repeat.${Date.now()}@example.com`;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await page.context().clearCookies();
+    await page.goto("/signup");
+    await page.getByLabel("Name").fill("Repeat Tester");
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Password", { exact: true }).fill("password123");
+    await page.getByLabel("Confirm password").fill("password123");
+    await page.getByRole("button", { name: "Create account" }).click();
+    if (attempt === 0) await expect(page).toHaveURL(/\/welcome/);
+    else await expect(page.getByText("An account with this email already exists")).toBeVisible();
+  }
+  await page.context().clearCookies();
+  await page.goto("/signup");
+  await page.getByLabel("Name").fill("Repeat Tester");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password", { exact: true }).fill("password123");
+  await page.getByLabel("Confirm password").fill("password123");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByText("Too many attempts. Try again in a few minutes.")).toBeVisible();
+});

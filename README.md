@@ -89,7 +89,7 @@ The seed data creates four people, all with the password `demo1234`.
 
 Sign in as Ava to land on **Orbit** (`ORB`). The other seeded projects are **Pulse** (`PLS`), **Atlas** (`ATL`), and **Relay** (`RLY`, a drag lab with a long column, a short column, and an empty column). Together they contain 67 issues, with labels, assignees, due dates, comments, and activity.
 
-The sign-in page includes a **Fill demo** button that enters Ava’s email and password.
+`npm run dev` shows a **Fill demo** button on the sign-in page. It enters Ava’s email and password. A production server hides that block, and it does not send the demo password to the browser. Set `NORTHSTAR_SHOW_DEMO=1` only when you intentionally want the block on a production build. The end-to-end server sets it so the existing demo-hint test still runs. Leave it unset on a public host.
 
 ## Run locally
 
@@ -185,5 +185,5 @@ Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A pu
 ### Change these before the site is public
 
 - The seed creates Ava Chen, Marcus Hale, Priya Nair, and Leo Park, all with the password `demo1234`. Those accounts are fixtures. On a public server, start from an empty file, or change every password and delete the accounts you do not want.
-- The sign-in page prints `ava@northstar.dev · demo1234` and offers a Fill demo button (`src/components/auth-form.tsx`). Remove that block before the site is public.
-- Sign-in has no rate limit, no email verification, and no password reset. Passwords are bcrypt with 10 rounds. Treat the accounts as demo-grade until that changes.
+- Do not set `NORTHSTAR_SHOW_DEMO=1`. Without it, production does not render Fill demo or the demo password.
+- Sign-in counts failed passwords: 8 per email and 40 per client address, each in a 15 minute window. Registration counts every accepted form: 5 per email and 30 per client address, in the same window. The counters live in the Node process, so a restart clears them and a second process does not see them. The address is the first `x-forwarded-for` hop, then `x-real-ip`, then a shared `local` bucket, and a client can spoof those headers. There is still no email verification or password reset. Passwords are bcrypt with 10 rounds.

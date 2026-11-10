@@ -20,6 +20,7 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       DATABASE_URL: "file:./e2e.db",
+      NORTHSTAR_SHOW_DEMO: "1",
     },
   },
   projects: [

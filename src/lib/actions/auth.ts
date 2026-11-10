@@ -1,12 +1,27 @@
 "use server";
 
+import { headers } from "next/headers";
 import { Prisma } from "@prisma/client";
 import { createSession, destroySession } from "@/lib/auth";
 import { getLandingPath } from "@/lib/data";
 import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
+import {
+  RATE_LIMIT_MESSAGE,
+  consumeIfAllowed,
+  loginFailuresByAddress,
+  loginFailuresByEmail,
+  readClientAddress,
+  signupsByAddress,
+  signupsByEmail,
+} from "@/lib/rate-limit";
 import { fail, ok, type ActionResult } from "@/lib/types";
 import { firstIssue, loginSchema, signupSchema } from "@/lib/validators";
+
+async function clientAddress() {
+  const headerStore = await headers();
+  return readClientAddress((name) => headerStore.get(name));
+}
 
 export async function loginAction(input: {
   email: string;
@@ -15,8 +30,17 @@ export async function loginAction(input: {
   const parsed = loginSchema.safeParse(input);
   if (!parsed.success) return fail(firstIssue(parsed.error));
 
-  const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+  const address = await clientAddress();
+  const email = parsed.data.email;
+  if (!loginFailuresByEmail.check(email).allowed || !loginFailuresByAddress.check(address).allowed) {
+    return fail(RATE_LIMIT_MESSAGE);
+  }
+
+  const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
+    const now = Date.now();
+    loginFailuresByEmail.hit(email, now);
+    loginFailuresByAddress.hit(address, now);
     return fail("Invalid email or password");
   }
 
@@ -32,6 +56,13 @@ export async function signupAction(input: {
 }): Promise<ActionResult<{ redirectTo: string }>> {
   const parsed = signupSchema.safeParse(input);
   if (!parsed.success) return fail(firstIssue(parsed.error));
+
+  const address = await clientAddress();
+  const limited = consumeIfAllowed([
+    { limiter: signupsByEmail, key: parsed.data.email },
+    { limiter: signupsByAddress, key: address },
+  ]);
+  if (limited) return fail(limited);
 
   try {
     const user = await prisma.user.create({
