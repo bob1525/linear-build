@@ -64,4 +64,11 @@ The conflict shot was taken as soon as the dialog appeared. The "Created …" to
 
 ## Actions run
 
-Recorded after the workflow for this commit finishes.
+[42858462657](https://github.com/bob1525/linear-build/actions/runs/42858462657) (`push`, head `6527d39`, 2026-11-10). Workflow conclusion: **success**.
+
+| Job | Conclusion | What it did |
+| --- | --- | --- |
+| Lint, typecheck, and unit tests | success (16:49:22Z–16:50:15Z) | Vitest **71/71** |
+| Playwright | success (16:49:22Z–16:52:28Z) | **44 passed** |
+
+This note is committed on `cursor/linear-issue-tracker-ef1d`.
