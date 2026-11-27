@@ -199,6 +199,7 @@ Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A pu
 
 Continued upgrade round:
 
+- [CONTINUED_UPGRADE_AUDIT.md](CONTINUED_UPGRADE_AUDIT.md) summarizes the round and records the latest test run.
 - [KEYBOARD_MOVE.md](KEYBOARD_MOVE.md) moves a focused board card to the neighboring column from the keyboard.
 - [SCREENSHOTS_REFRESH.md](SCREENSHOTS_REFRESH.md) recaptures the production sign-in page and adds the change-password page.
 - [AUTH_LIMITS_TIGHTEN.md](AUTH_LIMITS_TIGHTEN.md) counts successful sign-ins and closes the parallel check-then-insert gap.
