@@ -37,8 +37,8 @@ Same commands, after Reload started using the title from the conflict response.
 | --- | --- |
 | `npm run lint` | Pass. No ESLint warnings or errors. The `next lint` deprecation notice is not a failure |
 | `npm run typecheck` | Pass |
-| `npm test` | **128/128** (18 files) in 18.20s. `tests/unit/title-reload.test.ts` grew from 3 tests to 6. The previous 125 still pass |
-| `npm run test:e2e` | **59 passed** (1.4 minutes). One new test in `e2e/auth.spec.ts`. It passed on the first attempt (967 ms). Signup passed on the first attempt (494 ms). The batch-search test passed on the first attempt (1.4 seconds). The conflict test passed on the first attempt (2.5 seconds). The keyboard test passed on the first attempt (413 ms). The move test passed on the first attempt (1.7 seconds). The Backlog edge passed on the first attempt (798 ms). No flaky test |
+| `npm test` | **128/128** (18 files) in 17.44s. `tests/unit/title-reload.test.ts` grew from 3 tests to 6. The previous 125 still pass |
+| `npm run test:e2e` | **59 passed** (1.5 minutes). One new test in `e2e/auth.spec.ts`. It passed on the first attempt (969 ms). Signup passed on the first attempt (485 ms). The batch-search test passed on the first attempt (1.7 seconds). The conflict test passed on the first attempt (2.5 seconds). The keyboard test passed on the first attempt (388 ms). The move test passed on the first attempt (1.9 seconds). The Backlog edge passed on the first attempt (794 ms). No flaky test |
 
 ## Problems found
 
@@ -51,6 +51,10 @@ Reload waited for `router.refresh()` to commit the winning title. Under load tha
 The conflict response now includes the current server title. Reload applies that string immediately and does not copy an older page title over it. The field rejects the draft, the loaded title, and either joined order, and writes the server title back. A normal edit still updates the field. The conflict test assertion was not changed.
 
 Push [46045502884](https://github.com/bob1525/linear-build/actions/runs/46045502884) of `71356aa` is not a pass either. That build only rejected the joined string. Playwright reported `1 flaky` and `58 passed`. The conflict test failed on the first attempt (15.1 seconds) because the field stayed on `Conflict1795802239281 reload me`, then passed on retry 1 (3.4 seconds). The pull request run of that commit passed on the first attempt and is not the record, because the push of the same commit did not.
+
+Push [46046659569](https://github.com/bob1525/linear-build/actions/runs/46046659569) of `754aca9` passed on the first attempt (conflict test 3.4 seconds, 59 passed). Pull request [46046667684](https://github.com/bob1525/linear-build/actions/runs/46046667684) is not a pass. Playwright reported `1 flaky` and `58 passed`. The conflict test failed on the first attempt (12.6 seconds): the field stayed on `Conflict1795802802983 marcus` joined to `Conflict1795802802983 original`. Retry 1 passed (3.0 seconds). The sign-in test passed on the first attempt. Performance [46046667717](https://github.com/bob1525/linear-build/actions/runs/46046667717) succeeded (board 478 ms, list 431 ms, `status=ok`).
+
+The joined string was in the textarea after Reload even though the conflict response already had the server title. Assigning that title onto a dirty textarea can leave the previous title stuck on the end, and that DOM value can sit there without another React render. Reload now clears the textarea and writes the server title, then keeps correcting a draft, a loaded title, or either joined order for a short run of frames. A trusted edit that is none of those still updates the field. The conflict test assertion was not changed.
 
 A later local Playwright command, without `npm run db:e2e`, left the signup test on `/welcome` with “That project key is already in use”. `LNP` was still in `prisma/e2e.db` from the previous suite. That run is not a product failure. The reset suite above created the project and opened `/p/LNP` on the first attempt.
 

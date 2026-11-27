@@ -218,6 +218,7 @@ function TitleEditor({
   const replacing = useRef(false);
   const replacedPair = useRef<{ to: string; from: string; shown: string } | null>(null);
   const appliedTitle = useRef<string | null>(null);
+  const userTookOver = useRef(false);
   const generationRef = useRef(0);
   const pendingGeneration = useRef<number | null>(null);
   const [title, setTitle] = useState(issue.title);
@@ -226,18 +227,50 @@ function TitleEditor({
   const [pending, setPending] = useState(false);
 
   useLayoutEffect(() => {
-    if (pendingGeneration.current === null || generation !== pendingGeneration.current) return;
-    pendingGeneration.current = null;
+    if (pendingGeneration.current !== null && generation === pendingGeneration.current) {
+      pendingGeneration.current = null;
+    }
+    const wanted = appliedTitle.current;
     const node = field.current;
-    const next = appliedTitle.current ?? title;
-    if (node && node.value !== next) node.value = next;
-    const frame = requestAnimationFrame(() => {
+    if (!wanted || !node || userTookOver.current) {
       replacing.current = false;
-      const current = field.current;
-      const shown = appliedTitle.current ?? title;
-      if (current && current.value !== shown) current.value = shown;
-    });
-    return () => cancelAnimationFrame(frame);
+      return;
+    }
+    const write = () => {
+      if (node.value === wanted) return;
+      // Assigning the new title onto a dirty textarea can leave the old title
+      // stuck on the end. Clearing first makes the assignment replace.
+      node.value = "";
+      node.value = wanted;
+    };
+    write();
+    const badValue = () => {
+      const pair = replacedPair.current;
+      return pair !== null && node.value !== wanted && blockedReloadValue(node.value, pair);
+    };
+    const onInput = (event: Event) => {
+      if (userTookOver.current || appliedTitle.current !== wanted || !badValue()) return;
+      write();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+    };
+    node.addEventListener("input", onInput, true);
+    let frames = 0;
+    let stable = 0;
+    let raf = 0;
+    const tick = () => {
+      if (userTookOver.current || appliedTitle.current !== wanted) return;
+      if (badValue()) write();
+      stable = node.value === wanted ? stable + 1 : 0;
+      frames += 1;
+      if (frames < 45 && stable < 5) raf = requestAnimationFrame(tick);
+      else replacing.current = false;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      node.removeEventListener("input", onInput, true);
+    };
   }, [generation, title]);
 
   useEffect(() => {
@@ -256,6 +289,7 @@ function TitleEditor({
       dirty.current = false;
       replacedPair.current = { to: decision.title, from: acknowledgedTitle.current, shown: title };
       appliedTitle.current = decision.title;
+      userTookOver.current = false;
       acknowledgedTitle.current = decision.title;
       setTitle(decision.title);
       setGeneration(nextGeneration);
@@ -263,7 +297,10 @@ function TitleEditor({
     }
     if (dirty.current) return;
     if (!pageCaughtReload(issue, titleReload, appliedReloadId.current)) return;
-    appliedTitle.current = null;
+    if (appliedTitle.current && issue.title !== appliedTitle.current) {
+      appliedTitle.current = null;
+      replacedPair.current = null;
+    }
     acknowledgedTitle.current = issue.title;
     setTitle(issue.title);
   }, [issue.title, issue.updatedAt, titleReload]);
@@ -275,14 +312,20 @@ function TitleEditor({
     node.style.height = `${node.scrollHeight}px`;
   }, [title]);
 
-  function rejectBlocked(value: string) {
+  function rejectBlocked(value: string, trusted = false) {
     const pair = replacedPair.current;
-    return replacing.current || (pair !== null && blockedReloadValue(value, pair));
+    if (pair && blockedReloadValue(value, pair)) return true;
+    if (trusted || userTookOver.current) return false;
+    if (replacing.current) return true;
+    const wanted = appliedTitle.current;
+    return wanted !== null && value !== wanted;
   }
 
   function restoreField(node: HTMLTextAreaElement | null) {
     const next = appliedTitle.current ?? title;
-    if (node && node.value !== next) node.value = next;
+    if (!node || node.value === next) return;
+    node.value = "";
+    node.value = next;
   }
 
   async function save(rawValue: string) {
@@ -335,10 +378,11 @@ function TitleEditor({
         rows={1}
         onChange={(event) => {
           const next = event.target.value;
-          if (rejectBlocked(next)) {
+          if (rejectBlocked(next, event.nativeEvent.isTrusted)) {
             restoreField(event.currentTarget);
             return;
           }
+          if (event.nativeEvent.isTrusted) userTookOver.current = true;
           replacedPair.current = null;
           appliedTitle.current = null;
           dirty.current = true;
