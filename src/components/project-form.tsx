@@ -26,8 +26,9 @@ export function ProjectForm({ onDone, submitLabel = "Create project" }: { onDone
       return;
     }
     onDone?.();
+    // The action already revalidated. A refresh beside this push can cancel
+    // the navigation, and the form stays on /welcome after the project exists.
     router.push(result.data.redirectTo);
-    router.refresh();
   }
 
   return (
