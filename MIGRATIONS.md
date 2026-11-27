@@ -58,4 +58,12 @@ The first `npm run test:e2e` applied the migrations and then failed the drift ch
 
 ## Actions run
 
-Recorded after the workflow for this commit finishes.
+Push of `ec6c5c7`: [45980715722](https://github.com/bob1525/linear-build/actions/runs/45980715722), conclusion success.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 10:16:38Z to 10:17:26Z. **87 passed**.
+- `Playwright`: 2026-11-27 10:16:39Z to 10:19:24Z. **46 passed** (1.4 minutes). No flaky test. The keyboard test passed on the first attempt (516 ms).
+
+Pull request of the same commit: [45980725676](https://github.com/bob1525/linear-build/actions/runs/45980725676), conclusion success.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 10:16:42Z to 10:17:48Z. **87 passed**.
+- `Playwright`: 2026-11-27 10:16:42Z to 10:19:30Z. **46 passed** (1.4 minutes). No flaky test. The keyboard test passed on the first attempt (518 ms).
