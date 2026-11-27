@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { updateIssueAction } from "@/lib/actions/issues";
 import { STATUSES, statusLabel, type Status } from "@/lib/constants";
 import { compareIssues } from "@/lib/issue-view";
+import { listWindow } from "@/lib/list-window";
 import type { IssueSort } from "@/lib/view-state";
 import { formatDueDate, isOverdue } from "@/lib/format";
 import type { IssueDTO } from "@/lib/types";
@@ -31,9 +32,55 @@ export function IssueList({
 }) {
   const router = useRouter();
   const sorted = [...issues].sort((left, right) => compareIssues(left, right, sort));
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewport, setViewport] = useState(0);
+  const [heights, setHeights] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<{ issueId: string; status: Status; actorName: string | null } | null>(null);
   const [overwritePending, setOverwritePending] = useState(false);
+
+  useLayoutEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    let frame = 0;
+    const sync = () => {
+      frame = 0;
+      setViewport((current) => (current === el.clientHeight ? current : el.clientHeight));
+      setScrollTop((current) => (current === el.scrollTop ? current : el.scrollTop));
+    };
+    const schedule = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(sync);
+    };
+    sync();
+    el.addEventListener("scroll", schedule, { passive: true });
+    const observer = new ResizeObserver(schedule);
+    observer.observe(el);
+    return () => {
+      el.removeEventListener("scroll", schedule);
+      observer.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  function measure(id: string, node: HTMLLIElement | null) {
+    if (!node) return;
+    const height = node.offsetHeight;
+    if (height <= 0) return;
+    setHeights((current) => {
+      const previous = current[id];
+      if (previous !== undefined && Math.abs(previous - height) < 1) return current;
+      return { ...current, [id]: height };
+    });
+  }
+
+  const layout = listWindow({
+    count: sorted.length,
+    scrollTop,
+    viewport,
+    heights: sorted.map((issue) => heights[issue.id]),
+  });
 
   async function overwrite() {
     if (!conflict) return;
@@ -51,7 +98,7 @@ export function IssueList({
   }
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="flex h-full min-h-0 flex-col">
       {conflict ? (
         <ConflictPrompt
           actorName={conflict.actorName}
@@ -68,8 +115,9 @@ export function IssueList({
           {error}
         </p>
       ) : null}
-      <div className="min-w-[720px]">
-        <div className="grid grid-cols-[28px_28px_84px_minmax(0,1fr)_148px_180px_96px_36px] gap-2 border-b border-line px-4 py-2 text-[11px] uppercase tracking-wide text-ink-faint">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-auto">
+        <div className="flex h-full min-w-[720px] flex-col">
+        <div className="grid shrink-0 grid-cols-[28px_28px_84px_minmax(0,1fr)_148px_180px_96px_36px] gap-2 border-b border-line px-4 py-2 text-[11px] uppercase tracking-wide text-ink-faint">
           <span />
           <span />
           <span>ID</span>
@@ -79,10 +127,24 @@ export function IssueList({
           <span>Due</span>
           <span />
         </div>
-        <ul>
-          {sorted.map((issue) => (
+        <div
+          ref={scrollerRef}
+          data-testid="list-scroll"
+          data-virtualized={layout.virtualized ? "true" : "false"}
+          data-rendered-count={layout.indexes.length}
+          data-window-end={layout.end}
+          data-list-size={sorted.length}
+          className="min-h-0 flex-1 overflow-y-auto"
+          style={{ overflowAnchor: "none" }}
+        >
+        <ul className="relative w-full shrink-0" style={{ height: layout.total }}>
+          {layout.indexes.map((index) => {
+            const issue = sorted[index];
+            if (!issue) return null;
+            return (
             <li
               key={issue.id}
+              ref={(node) => measure(issue.id, node)}
               data-testid={`row-${issue.key}`}
               data-blocked={issue.blockedByCount > 0 ? "true" : "false"}
               data-blocks={issue.blocksCount > 0 ? "true" : "false"}
@@ -98,9 +160,10 @@ export function IssueList({
                   : undefined
               }
               className={cn(
-                "grid grid-cols-[28px_28px_84px_minmax(0,1fr)_148px_180px_96px_36px] items-center gap-2 border-b border-line px-4 py-2 hover:bg-white/[0.03]",
+                "absolute inset-x-0 grid grid-cols-[28px_28px_84px_minmax(0,1fr)_148px_180px_96px_36px] items-center gap-2 border-b border-line px-4 py-2 hover:bg-white/[0.03]",
                 selectedIds.includes(issue.id) && "bg-accent/10",
               )}
+              style={{ top: layout.offsets[index] }}
             >
               {onSelect ? (
                 <button
@@ -145,8 +208,11 @@ export function IssueList({
                 {issue.assignee ? <Avatar name={issue.assignee.name} /> : <span className="block h-5 w-5 rounded-full border border-dashed border-line" />}
               </span>
             </li>
-          ))}
+            );
+          })}
         </ul>
+        </div>
+        </div>
       </div>
     </div>
   );

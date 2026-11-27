@@ -24,6 +24,7 @@ export function columnWindow({
   overscan = COLUMN_OVERSCAN,
   heights,
   pinIndexes = [],
+  minimum = COLUMN_VIRTUAL_MIN,
 }: {
   count: number;
   scrollTop: number;
@@ -33,6 +34,8 @@ export function columnWindow({
   overscan?: number;
   heights?: Array<number | undefined>;
   pinIndexes?: number[];
+  /** Lists pass their own floor. Columns keep the default of 10. */
+  minimum?: number;
 }): ColumnWindow {
   const offsets = new Array<number>(count + 1);
   offsets[0] = 0;
@@ -44,7 +47,7 @@ export function columnWindow({
   }
   const total = offsets[count] ?? 0;
   const every = Array.from({ length: count }, (_, index) => index);
-  if (count === 0 || count < COLUMN_VIRTUAL_MIN) {
+  if (count === 0 || count < minimum) {
     return { start: 0, end: count, total, offsets, indexes: every, virtualized: false };
   }
   const view = viewport > 0 ? viewport : estimate * (overscan + 6);

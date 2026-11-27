@@ -114,6 +114,37 @@ async function measureScroll(page: Page) {
   };
 }
 
+async function loadList(page: Page) {
+  const started = Date.now();
+  await page.goto(`${baseURL}/p/PERF/list?all=1`, { waitUntil: "domcontentloaded" });
+  await page.locator("[data-testid^='row-']").first().waitFor();
+  const elapsed = Date.now() - started;
+  const scroller = page.getByTestId("list-scroll");
+  const size = Number(await scroller.getAttribute("data-list-size"));
+  const mounted = await page.locator("[data-testid^='row-']").count();
+  const html = await page.evaluate(new Function("return document.documentElement.outerHTML.length") as () => number);
+  if (size !== 500) throw new Error(`Expected 500 issues on the list, found ${size}`);
+  if (mounted >= size) throw new Error(`List mounted every row (${mounted} of ${size})`);
+  return { elapsed, size, mounted, html };
+}
+
+async function measureListScroll(page: Page) {
+  const scroller = page.getByTestId("list-scroll");
+  const mountedAtTop = await page.locator("[data-testid^='row-']").count();
+  const started = Date.now();
+  await scroller.evaluate(new Function("node", "node.scrollTop = node.scrollHeight;") as (node: HTMLElement) => void);
+  await page.waitForFunction(
+    new Function(
+      `const el = document.querySelector("[data-testid='list-scroll']");
+       if (!(el instanceof HTMLElement)) return false;
+       return Number(el.getAttribute("data-window-end")) === Number(el.getAttribute("data-list-size"));`,
+    ) as () => boolean,
+  );
+  const scrollMs = Date.now() - started;
+  const mountedAtEnd = await page.locator("[data-testid^='row-']").count();
+  return { mountedAtTop, mountedAtEnd, scrollMs };
+}
+
 async function columnTotal(page: Page) {
   return page.evaluate(() => {
     return [...document.querySelectorAll("[data-testid^='column-'] header span:last-child")]
@@ -260,6 +291,9 @@ async function main() {
   const searches = [await filterBySearch(page), await filterBySearch(page), await filterBySearch(page)];
   const priorities = [await filterByPriority(page), await filterByPriority(page), await filterByPriority(page)];
   const drags = [await dragOnce(page, "Perf 002"), await dragOnce(page, "Perf 006")];
+  const listLoads = [await loadList(page), await loadList(page), await loadList(page)];
+  const listScroll = await measureListScroll(page);
+  const listLoadMedianMs = median(listLoads.map((item) => item.elapsed));
   const boardLoadMedianMs = median(loads.map((item) => item.elapsed));
   const withinBudget = boardLoadMedianMs < boardLoadBudgetMs;
   const report = {
@@ -281,6 +315,11 @@ async function main() {
     priorityFilterMedianMs: median(priorities.map((item) => item.elapsed)),
     priorityShown: priorities.map((item) => item.shown),
     drags,
+    listLoadMs: listLoads.map((item) => item.elapsed),
+    listLoadMedianMs,
+    listMounted: listLoads.map((item) => item.mounted),
+    listHtmlBytes: listLoads.map((item) => item.html),
+    listScroll,
   };
   console.log(JSON.stringify(report, null, 2));
   const status = withinBudget ? "ok" : "warn";
@@ -291,6 +330,9 @@ async function main() {
   );
   console.warn(
     `PERF scrollMountedAtTop=${scroll.mountedAtTop} scrollMountedAtEnd=${scroll.mountedAtEnd} scrollMs=${scroll.scrollMs} scrollFrameP50Ms=${scroll.frameP50Ms} scrollFrameMaxMs=${scroll.frameMaxMs}`,
+  );
+  console.warn(
+    `PERF listLoadMedianMs=${listLoadMedianMs} listMountedAtTop=${listScroll.mountedAtTop} listMountedAtEnd=${listScroll.mountedAtEnd} listScrollMs=${listScroll.scrollMs} listSize=${listLoads[0]?.size ?? 0} listHtmlBytes=${listLoads[0]?.html ?? 0}`,
   );
   if (!withinBudget) {
     console.warn(
