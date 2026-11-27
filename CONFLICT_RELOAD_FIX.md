@@ -54,4 +54,12 @@ The CI retry is still configured. It is the same retry as before, not a new one.
 
 ## Actions run
 
-Recorded after the workflow for this commit finishes.
+Push of `ac72eee`: [45999804808](https://github.com/bob1525/linear-build/actions/runs/45999804808), conclusion success.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 12:34:43Z to 12:35:46Z. **98 passed**.
+- `Playwright`: 2026-11-27 12:34:43Z to 12:36:54Z. **47 passed** (1.2 minutes). No flaky test. `the later saver of an issue gets a conflict prompt` passed on the first attempt (5.7 seconds). The keyboard test passed on the first attempt (397 ms).
+
+Pull request of the same commit: [45999812567](https://github.com/bob1525/linear-build/actions/runs/45999812567), conclusion success.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 12:34:46Z to 12:35:37Z. **98 passed**.
+- `Playwright`: 2026-11-27 12:34:47Z to 12:37:32Z. **47 passed** (1.4 minutes). No flaky test. The conflict test passed on the first attempt (3.3 seconds). The keyboard test passed on the first attempt (567 ms).
