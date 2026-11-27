@@ -57,4 +57,12 @@ The CI retry is still configured. It is the same retry as before, not a new one.
 
 ## Actions run
 
-Recorded after the workflow for this commit finishes.
+Push of `7c9a36b`: [45976755038](https://github.com/bob1525/linear-build/actions/runs/45976755038), conclusion success.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 09:48:21Z to 09:49:37Z. **77 passed**.
+- `Playwright`: 2026-11-27 09:48:21Z to 09:51:37Z. **46 passed** (1.4 minutes). No flaky test. `opens the new issue dialog from the keyboard` passed on the first attempt (440 ms). The log has no `retry #1` for it.
+
+Pull request of the same commit: [45976766833](https://github.com/bob1525/linear-build/actions/runs/45976766833), conclusion success.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 09:48:25Z to 09:49:24Z. **77 passed**.
+- `Playwright`: 2026-11-27 09:48:25Z to 09:51:44Z. **46 passed** (1.4 minutes). No flaky test. The keyboard test passed on the first attempt (513 ms).
