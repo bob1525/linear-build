@@ -6,7 +6,7 @@ Northstar is a lightweight issue tracker for product teams. It covers the everyd
 
 ## Features
 
-- Email and password accounts. Passwords are hashed with bcrypt. Sessions live in an httpOnly cookie.
+- Email and password accounts. Passwords are hashed with bcrypt. Sessions live in an httpOnly cookie. A signed-in person can change their password; other sessions for that account are signed out.
 - Multiple projects, with the last opened project remembered across visits.
 - Issues with a title, Markdown description, status, priority, assignee, due date, and labels.
 - Status workflow: Backlog, Todo, In Progress, and Done.
@@ -187,9 +187,13 @@ Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A pu
 
 - The seed creates Ava Chen, Marcus Hale, Priya Nair, and Leo Park, all with the password `demo1234`. Those accounts are fixtures. On a public server, start from an empty file, or change every password and delete the accounts you do not want.
 - Do not set `NORTHSTAR_SHOW_DEMO=1`. Without it, production does not render Fill demo or the demo password.
-- Sign-in counts failed passwords: 8 per email and 40 per client address, each in a 15 minute window. Registration counts every accepted form: 5 per email and 30 per client address, in the same window. Each count is a row in `RateLimitEvent` in the same SQLite file, so a restart keeps it and another process that opens that file sees it. With `TRUST_PROXY` unset, the address is `local` even if the request sends `x-forwarded-for` or `x-real-ip`. With `TRUST_PROXY=1`, the address is the first forwarded hop, then `x-real-ip`, then `local`. There is still no email verification or password reset. Passwords are bcrypt with 10 rounds.
+- Sign-in counts failed passwords: 8 per email and 40 per client address, each in a 15 minute window. Registration counts every accepted form: 5 per email and 30 per client address, in the same window. A signed-in password change counts a wrong current password the same way as a failed sign-in, 8 per email and 40 per address, in its own rows so it does not lock sign-in. Each count is a row in `RateLimitEvent` in the same SQLite file, so a restart keeps it and another process that opens that file sees it. With `TRUST_PROXY` unset, the address is `local` even if the request sends `x-forwarded-for` or `x-real-ip`. With `TRUST_PROXY=1`, the address is the first forwarded hop, then `x-real-ip`, then `local`. There is still no email verification and no forgot-password flow. Those need a mail provider. Passwords are bcrypt with 10 rounds. The signed-in form is at `/account`.
 
 ## Documentation
+
+Follow-up round:
+
+- [PASSWORD_CHANGE.md](PASSWORD_CHANGE.md) is the signed-in password change, its rate limit, and what still needs a mail provider.
 
 Upgrade round:
 

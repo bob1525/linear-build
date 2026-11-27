@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEMO_PASSWORD, DEMO_USERS } from "@/lib/demo-accounts";
-import { createProjectSchema, firstIssue, loginSchema, signupSchema, suggestProjectKey } from "@/lib/validators";
+import { changePasswordSchema, createProjectSchema, firstIssue, loginSchema, signupSchema, suggestProjectKey } from "@/lib/validators";
 
 describe("suggestProjectKey", () => {
   it("builds a short key from one or more words", () => {
@@ -42,6 +42,39 @@ describe("auth schemas", () => {
     });
     expect(mismatch.success).toBe(false);
     if (!mismatch.success) expect(firstIssue(mismatch.error)).toBe("Passwords do not match");
+  });
+
+  it("rejects a short, mismatched, or unchanged new password", () => {
+    const short = changePasswordSchema.safeParse({
+      currentPassword: "password123",
+      newPassword: "short",
+      confirmPassword: "short",
+    });
+    expect(short.success).toBe(false);
+    if (!short.success) expect(firstIssue(short.error)).toMatch(/8 characters/);
+
+    const mismatch = changePasswordSchema.safeParse({
+      currentPassword: "password123",
+      newPassword: "password456",
+      confirmPassword: "password789",
+    });
+    expect(mismatch.success).toBe(false);
+    if (!mismatch.success) expect(firstIssue(mismatch.error)).toBe("Passwords do not match");
+
+    const same = changePasswordSchema.safeParse({
+      currentPassword: "password123",
+      newPassword: "password123",
+      confirmPassword: "password123",
+    });
+    expect(same.success).toBe(false);
+    if (!same.success) expect(firstIssue(same.error)).toBe("Choose a different password");
+
+    const ok = changePasswordSchema.safeParse({
+      currentPassword: "password123",
+      newPassword: "password456",
+      confirmPassword: "password456",
+    });
+    expect(ok.success).toBe(true);
   });
 });
 

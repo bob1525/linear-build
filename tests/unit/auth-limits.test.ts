@@ -4,14 +4,17 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { AUTH_WINDOW_MS, LOGIN_FAILURE_LIMIT, RATE_LIMIT_MESSAGE, SIGNUP_EMAIL_LIMIT, SIGNUP_IP_LIMIT } from "@/lib/rate-limit";
+import { AUTH_WINDOW_MS, LOGIN_FAILURE_IP_LIMIT, LOGIN_FAILURE_LIMIT, RATE_LIMIT_MESSAGE, SIGNUP_EMAIL_LIMIT, SIGNUP_IP_LIMIT } from "@/lib/rate-limit";
 import {
   LOGIN_EMAIL_BUCKET,
+  PASSWORD_EMAIL_BUCKET,
   checkRateLimit,
   consumeSignup,
   hitRateLimit,
   loginIsLimited,
+  passwordChangeIsLimited,
   recordLoginFailure,
+  recordPasswordFailure,
 } from "@/lib/rate-limit-store";
 
 let directory = "";
@@ -123,5 +126,25 @@ prisma.rateLimitEvent
     }
     expect(await consumeSignup(db, "overflow@example.com", "local", 21_000)).toBe(RATE_LIMIT_MESSAGE);
     expect(await db.rateLimitEvent.count({ where: { bucket: "signup-email", key: "overflow@example.com" } })).toBe(0);
+  });
+
+  it("limits wrong current passwords like sign-in failures, in a separate bucket", async () => {
+    for (let attempt = 0; attempt < LOGIN_FAILURE_LIMIT; attempt += 1) {
+      await recordPasswordFailure(db, "ada@example.com", "local", 30_000 + attempt);
+    }
+    expect(await passwordChangeIsLimited(db, "ada@example.com", "local", 30_100)).toBe(true);
+    expect(await passwordChangeIsLimited(db, "bea@example.com", "local", 30_100)).toBe(false);
+    expect(await loginIsLimited(db, "ada@example.com", "local", 30_100)).toBe(false);
+    expect(await db.rateLimitEvent.count({ where: { bucket: PASSWORD_EMAIL_BUCKET, key: "ada@example.com" } })).toBe(
+      LOGIN_FAILURE_LIMIT,
+    );
+  });
+
+  it("stops a password change from a new email when the address bucket is full", async () => {
+    for (let attempt = 0; attempt < LOGIN_FAILURE_IP_LIMIT; attempt += 1) {
+      await recordPasswordFailure(db, `person.${attempt}@example.com`, "shared", 40_000 + attempt);
+    }
+    expect(await passwordChangeIsLimited(db, "fresh@example.com", "shared", 41_000)).toBe(true);
+    expect(await passwordChangeIsLimited(db, "fresh@example.com", "other", 41_000)).toBe(false);
   });
 });

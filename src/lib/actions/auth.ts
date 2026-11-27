@@ -1,15 +1,16 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { Prisma } from "@prisma/client";
-import { createSession, destroySession } from "@/lib/auth";
+import { createSession, destroySession, getCurrentUser } from "@/lib/auth";
+import { SESSION_COOKIE } from "@/lib/cookies";
 import { getLandingPath } from "@/lib/data";
 import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { RATE_LIMIT_MESSAGE, readClientAddress } from "@/lib/rate-limit";
-import { consumeSignup, loginIsLimited, recordLoginFailure } from "@/lib/rate-limit-store";
+import { consumeSignup, loginIsLimited, passwordChangeIsLimited, recordLoginFailure, recordPasswordFailure } from "@/lib/rate-limit-store";
 import { fail, ok, type ActionResult } from "@/lib/types";
-import { firstIssue, loginSchema, signupSchema } from "@/lib/validators";
+import { changePasswordSchema, firstIssue, loginSchema, signupSchema } from "@/lib/validators";
 
 async function clientAddress() {
   const headerStore = await headers();
@@ -67,6 +68,38 @@ export async function signupAction(input: {
     console.error(error);
     return fail("Could not create your account. Please try again.");
   }
+}
+
+export async function changePasswordAction(input: {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}): Promise<ActionResult<{ updated: true }>> {
+  const user = await getCurrentUser();
+  if (!user) return fail("Sign in to change your password");
+
+  const parsed = changePasswordSchema.safeParse(input);
+  if (!parsed.success) return fail(firstIssue(parsed.error));
+
+  const address = await clientAddress();
+  if (await passwordChangeIsLimited(prisma, user.email, address)) return fail(RATE_LIMIT_MESSAGE);
+
+  const row = await prisma.user.findUnique({ where: { id: user.id }, select: { passwordHash: true } });
+  if (!row || !(await verifyPassword(parsed.data.currentPassword, row.passwordHash))) {
+    await recordPasswordFailure(prisma, user.email, address);
+    return fail("Current password is incorrect");
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash: await hashPassword(parsed.data.newPassword) },
+  });
+  const jar = await cookies();
+  const token = jar.get(SESSION_COOKIE)?.value;
+  await prisma.session.deleteMany({
+    where: { userId: user.id, ...(token ? { NOT: { token } } : {}) },
+  });
+  return ok({ updated: true });
 }
 
 export async function logoutAction(): Promise<ActionResult<{ redirectTo: string }>> {

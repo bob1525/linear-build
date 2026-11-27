@@ -196,6 +196,12 @@ export function AppShell({
             <p className="px-2 pb-2 text-[11px] text-ink-faint">
               <Kbd>C</Kbd> new issue <span className="px-1">·</span> <Kbd>/</Kbd> search
             </p>
+            <Link
+              href="/account"
+              className="mb-1 block rounded-md px-2 py-1 text-[12px] text-ink-muted hover:bg-white/[0.04] hover:text-ink"
+            >
+              Change password
+            </Link>
             <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
               <Avatar name={user.name} size={24} />
               <div className="min-w-0 flex-1">

@@ -13,6 +13,8 @@ export const LOGIN_EMAIL_BUCKET = "login-email";
 export const LOGIN_ADDRESS_BUCKET = "login-address";
 export const SIGNUP_EMAIL_BUCKET = "signup-email";
 export const SIGNUP_ADDRESS_BUCKET = "signup-address";
+export const PASSWORD_EMAIL_BUCKET = "password-email";
+export const PASSWORD_ADDRESS_BUCKET = "password-address";
 
 type EventStore = Pick<PrismaClient, "rateLimitEvent">;
 type Store = PrismaClient;
@@ -72,6 +74,31 @@ export async function recordLoginFailure(db: Store, email: string, address: stri
   await db.$transaction(async (tx) => {
     await hitRateLimit(tx, { bucket: LOGIN_EMAIL_BUCKET, key: email, windowMs: AUTH_WINDOW_MS, now });
     await hitRateLimit(tx, { bucket: LOGIN_ADDRESS_BUCKET, key: address, windowMs: AUTH_WINDOW_MS, now });
+  });
+}
+
+export async function passwordChangeIsLimited(db: EventStore, email: string, address: string, now = Date.now()) {
+  const emailDecision = await checkRateLimit(db, {
+    bucket: PASSWORD_EMAIL_BUCKET,
+    key: email,
+    limit: LOGIN_FAILURE_LIMIT,
+    windowMs: AUTH_WINDOW_MS,
+    now,
+  });
+  const addressDecision = await checkRateLimit(db, {
+    bucket: PASSWORD_ADDRESS_BUCKET,
+    key: address,
+    limit: LOGIN_FAILURE_IP_LIMIT,
+    windowMs: AUTH_WINDOW_MS,
+    now,
+  });
+  return !emailDecision.allowed || !addressDecision.allowed;
+}
+
+export async function recordPasswordFailure(db: Store, email: string, address: string, now = Date.now()) {
+  await db.$transaction(async (tx) => {
+    await hitRateLimit(tx, { bucket: PASSWORD_EMAIL_BUCKET, key: email, windowMs: AUTH_WINDOW_MS, now });
+    await hitRateLimit(tx, { bucket: PASSWORD_ADDRESS_BUCKET, key: address, windowMs: AUTH_WINDOW_MS, now });
   });
 }
 

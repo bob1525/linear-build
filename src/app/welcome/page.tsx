@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getProjectsForUser, getLandingPath } from "@/lib/data";
 import { requireUser } from "@/lib/session";
@@ -15,6 +16,11 @@ export default async function WelcomePage() {
         <h1 className="mt-2 text-[24px] font-semibold tracking-tight">Your workspace is empty</h1>
         <p className="mt-2 text-[13px] leading-6 text-ink-muted">
           Projects group issues, labels, and the people working on them. Create one to open the board.
+        </p>
+        <p className="mt-3 text-[13px]">
+          <Link href="/account" className="text-ink-muted underline decoration-line underline-offset-2 hover:text-ink">
+            Change password
+          </Link>
         </p>
         <div className="mt-6 rounded-xl border border-line bg-panel p-4">
           <ProjectForm />

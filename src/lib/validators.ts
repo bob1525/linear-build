@@ -26,6 +26,21 @@ export const signupSchema = z
     path: ["confirmPassword"],
   });
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Enter your current password"),
+    newPassword: z.string().min(8, "Use at least 8 characters").max(200, "Password is too long"),
+    confirmPassword: z.string(),
+  })
+  .refine((value) => value.newPassword === value.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  })
+  .refine((value) => value.newPassword !== value.currentPassword, {
+    message: "Choose a different password",
+    path: ["newPassword"],
+  });
+
 export const createIssueSchema = z.object({
   projectKey: z.string().trim().min(1),
   title: z.string().trim().min(1, "Title is required").max(200, "Title is too long"),
