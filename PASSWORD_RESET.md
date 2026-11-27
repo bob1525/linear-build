@@ -45,3 +45,19 @@ A delivery failure deletes the token and returns the same ready message as an un
 - AUTH PLAIN, the 8 second SMTP timeout, and the local JSONL outbox are unchanged. Certificate verification still cannot be turned off with an environment variable.
 - The title guard still matches only the draft, the loaded title, and the exact joined string. Board, list, issue detail, relations, saved views, and the new-issue dialog still call `router.refresh()` after their own saves.
 - SQLite stays the default. A failed send looks like a prepared link and leaves no token.
+
+## Actions run
+
+These runs are `0b34803`. Both Playwright jobs passed on the first attempt. No flaky test and no retry.
+
+Push of `0b34803`: [46052630369](https://github.com/bob1525/linear-build/actions/runs/46052630369), conclusion success.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 18:52:24Z to 18:53:33Z. **141 passed** (20 files).
+- `Playwright`: 2026-11-27 18:52:24Z to 18:55:25Z. **61 passed** (1.8 minutes). `forgot password says reset email is unavailable when mail is off` passed on the first attempt (268 ms). `a reset link from the outbox changes the password and signs out the other session` passed on the first attempt (4.0 seconds). `sign-in and logout show the signed-in board and the sign-in page on the first attempt` passed on the first attempt (1.1 seconds). `signs up, creates a project, and shows the empty board` passed on the first attempt (839 ms). `shows which issue failed when part of a batch no longer exists` passed on the first attempt (6.0 seconds). `the later saver of an issue gets a conflict prompt` passed on the first attempt (5.7 seconds). `the account link opens the password form` passed on the first attempt (525 ms). The keyboard test passed on the first attempt (417 ms). The move test passed on the first attempt (2.4 seconds). The Backlog edge passed on the first attempt (955 ms).
+
+Pull request of `0b34803`: [46052638642](https://github.com/bob1525/linear-build/actions/runs/46052638642), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 18:52:28Z to 18:53:23Z. **141 passed** (20 files).
+- `Playwright`: 2026-11-27 18:52:28Z to 18:55:17Z. **61 passed** (1.7 minutes). The unavailable-mail test passed on the first attempt (269 ms). The outbox reset test passed on the first attempt (2.5 seconds). The sign-in test passed on the first attempt (2.1 seconds). Signup passed on the first attempt (550 ms). The batch-search test passed on the first attempt (1.4 seconds). The conflict test passed on the first attempt (6.6 seconds). The account test passed on the first attempt (473 ms). The keyboard test passed on the first attempt (460 ms). The move test passed on the first attempt (2.0 seconds). The Backlog edge passed on the first attempt (959 ms).
+
+Performance on the same commit, not required: [46052638535](https://github.com/bob1525/linear-build/actions/runs/46052638535), conclusion success, 18:52:29Z to 18:54:03Z. Board-load median **427 ms**, `budgetMs=1200` `status=ok`. List-load median **375 ms**, 19 mounted at the top and 18 at the end.
