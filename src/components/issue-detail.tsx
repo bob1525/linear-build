@@ -10,7 +10,7 @@ import { PRIORITIES, STATUSES, priorityLabel, statusLabel, type Priority, type S
 import { isOverdue, toDateInputValue } from "@/lib/format";
 import type { ActionResult, ActivityDTO, CommentDTO, IssueCandidate, IssueDTO, IssueRelationGroups, LabelDTO, ProjectSummary, UserDTO } from "@/lib/types";
 import { IssueRelations } from "@/components/issue-relations";
-import { joinedReloadValue, titleAfterReload, type TitleReloadRequest } from "@/lib/title-reload";
+import { blockedReloadValue, pageCaughtReload, titleAfterReload, type TitleReloadRequest } from "@/lib/title-reload";
 import { cn } from "@/lib/cn";
 import { Avatar, LabelPill } from "@/components/avatar";
 import { PriorityIcon, StatusIcon } from "@/components/icons";
@@ -44,7 +44,12 @@ export function IssueDetail({
   const desktop = useIsDesktop();
   const router = useRouter();
   const [baseUpdatedAt, setBaseUpdatedAt] = useState(issue.updatedAt);
-  const [conflict, setConflict] = useState<{ patch: IssuePatch; actorName: string | null; serverUpdatedAt: string } | null>(null);
+  const [conflict, setConflict] = useState<{
+    patch: IssuePatch;
+    actorName: string | null;
+    serverUpdatedAt: string;
+    title: string;
+  } | null>(null);
   const [overwritePending, setOverwritePending] = useState(false);
   const [conflictError, setConflictError] = useState<string | null>(null);
   const [extraActivities, setExtraActivities] = useState<ActivityDTO[]>([]);
@@ -60,7 +65,12 @@ export function IssueDetail({
     if (result.ok) setBaseUpdatedAt(result.data.updatedAt);
     else if (result.conflict && !overwrite) {
       setConflictError(null);
-      setConflict({ patch, actorName: result.conflict.actorName, serverUpdatedAt: result.conflict.updatedAt });
+      setConflict({
+        patch,
+        actorName: result.conflict.actorName,
+        serverUpdatedAt: result.conflict.updatedAt,
+        title: result.conflict.title,
+      });
     }
     return result;
   }
@@ -83,7 +93,7 @@ export function IssueDetail({
     const serverUpdatedAt = conflict.serverUpdatedAt;
     setConflict(null);
     titleReloadId.current += 1;
-    setTitleReload({ id: titleReloadId.current, serverUpdatedAt });
+    setTitleReload({ id: titleReloadId.current, serverUpdatedAt, title: conflict.title });
     router.refresh();
   }
   useEffect(() => {
@@ -207,6 +217,7 @@ function TitleEditor({
   const appliedReloadId = useRef(0);
   const replacing = useRef(false);
   const replacedPair = useRef<{ to: string; from: string; shown: string } | null>(null);
+  const appliedTitle = useRef<string | null>(null);
   const generationRef = useRef(0);
   const pendingGeneration = useRef<number | null>(null);
   const [title, setTitle] = useState(issue.title);
@@ -218,11 +229,13 @@ function TitleEditor({
     if (pendingGeneration.current === null || generation !== pendingGeneration.current) return;
     pendingGeneration.current = null;
     const node = field.current;
-    if (node && node.value !== title) node.value = title;
+    const next = appliedTitle.current ?? title;
+    if (node && node.value !== next) node.value = next;
     const frame = requestAnimationFrame(() => {
       replacing.current = false;
       const current = field.current;
-      if (current && current.value !== title) current.value = title;
+      const shown = appliedTitle.current ?? title;
+      if (current && current.value !== shown) current.value = shown;
     });
     return () => cancelAnimationFrame(frame);
   }, [generation, title]);
@@ -242,12 +255,15 @@ function TitleEditor({
       replacing.current = true;
       dirty.current = false;
       replacedPair.current = { to: decision.title, from: acknowledgedTitle.current, shown: title };
+      appliedTitle.current = decision.title;
       acknowledgedTitle.current = decision.title;
       setTitle(decision.title);
       setGeneration(nextGeneration);
       return;
     }
     if (dirty.current) return;
+    if (!pageCaughtReload(issue, titleReload, appliedReloadId.current)) return;
+    appliedTitle.current = null;
     acknowledgedTitle.current = issue.title;
     setTitle(issue.title);
   }, [issue.title, issue.updatedAt, titleReload]);
@@ -259,18 +275,23 @@ function TitleEditor({
     node.style.height = `${node.scrollHeight}px`;
   }, [title]);
 
-  function rejectJoined(value: string) {
+  function rejectBlocked(value: string) {
     const pair = replacedPair.current;
-    return replacing.current || (pair !== null && joinedReloadValue(value, pair));
+    return replacing.current || (pair !== null && blockedReloadValue(value, pair));
+  }
+
+  function restoreField(node: HTMLTextAreaElement | null) {
+    const next = appliedTitle.current ?? title;
+    if (node && node.value !== next) node.value = next;
   }
 
   async function save(rawValue: string) {
-    if (rejectJoined(rawValue)) {
-      const node = field.current;
-      if (node && node.value !== title) node.value = title;
+    if (rejectBlocked(rawValue)) {
+      restoreField(field.current);
       return;
     }
     replacedPair.current = null;
+    appliedTitle.current = null;
     const next = rawValue.trim();
     if (!next || next === acknowledgedTitle.current) {
       dirty.current = false;
@@ -314,11 +335,12 @@ function TitleEditor({
         rows={1}
         onChange={(event) => {
           const next = event.target.value;
-          if (rejectJoined(next)) {
-            if (event.currentTarget.value !== title) event.currentTarget.value = title;
+          if (rejectBlocked(next)) {
+            restoreField(event.currentTarget);
             return;
           }
           replacedPair.current = null;
+          appliedTitle.current = null;
           dirty.current = true;
           setTitle(next);
         }}

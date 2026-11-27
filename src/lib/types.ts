@@ -92,6 +92,7 @@ export type ProjectSummary = {
 export type ConflictDetails = {
   updatedAt: string;
   actorName: string | null;
+  title: string;
 };
 
 export type ActionResult<T> =

@@ -223,6 +223,7 @@ export async function updateIssueAction(input: unknown): Promise<ActionResult<{ 
     return conflict(conflictCopy(actorName), {
       updatedAt: existing.updatedAt.toISOString(),
       actorName,
+      title: existing.title,
     });
   }
 
