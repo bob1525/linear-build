@@ -72,4 +72,14 @@ Push [46024345954](https://github.com/bob1525/linear-build/actions/runs/46024345
 
 ## Actions run
 
-Recorded after the workflow for this commit finishes.
+Push of `d1fcb40`: [46025536154](https://github.com/bob1525/linear-build/actions/runs/46025536154), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 15:30:39Z to 15:31:43Z. **125 passed** (18 files).
+- `Playwright`: 2026-11-27 15:30:39Z to 15:33:31Z. **58 passed** (1.6 minutes).
+
+Pull request of the same commit: [46025550052](https://github.com/bob1525/linear-build/actions/runs/46025550052), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 15:30:45Z to 15:31:56Z. **125 passed** (18 files).
+- `Playwright`: 2026-11-27 15:30:44Z to 15:33:36Z. **58 passed** (1.6 minutes). `shows which issue failed when part of a batch no longer exists` passed on the first attempt (6.3 seconds).
+
+Performance on the same commit, not required: [46025550099](https://github.com/bob1525/linear-build/actions/runs/46025550099), conclusion success. Board-load median 475 ms, `status=ok`. List-load median 448 ms, 19 mounted at the top and 19 at the end.
