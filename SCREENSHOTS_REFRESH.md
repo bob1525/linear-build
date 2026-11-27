@@ -42,4 +42,14 @@ The first `--refresh` run wrote `login.png` and then failed before `change-passw
 
 ## Actions run
 
-Recorded after the workflow for this commit finishes.
+Push of `6c34d33`: [46016194538](https://github.com/bob1525/linear-build/actions/runs/46016194538), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 14:28:10Z to 14:29:01Z. **118 passed** (17 files).
+- `Playwright`: 2026-11-27 14:28:10Z to 14:30:58Z. **58 passed** (1.6 minutes). `the later saver of an issue gets a conflict prompt` passed on the first attempt (3.4 seconds). The keyboard test passed on the first attempt (578 ms).
+
+Pull request of the same commit: [46016205180](https://github.com/bob1525/linear-build/actions/runs/46016205180), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 14:28:14Z to 14:29:05Z. **118 passed** (17 files).
+- `Playwright`: 2026-11-27 14:28:15Z to 14:31:31Z. **58 passed** (1.7 minutes). The conflict test passed on the first attempt (2.9 seconds). The keyboard test passed on the first attempt (514 ms).
+
+Performance on the same commit, not required: [46016205112](https://github.com/bob1525/linear-build/actions/runs/46016205112), conclusion success. Board-load median 468 ms, `status=ok`. List-load median 407 ms, 19 mounted at the top and 19 at the end.
