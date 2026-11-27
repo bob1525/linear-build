@@ -22,6 +22,16 @@ async function shot(page: Page, name: string) {
   await page.screenshot({ path: `${outDir}/${name}` });
 }
 
+/** The production sign-in page has no Fill demo block and does not receive the demo password. */
+async function assertProductionLogin(page: Page) {
+  await page.getByRole("heading", { name: "Sign in to Northstar" }).waitFor();
+  const text = await page.locator("body").innerText();
+  const html = await page.content();
+  if (text.includes("Fill demo") || text.includes("Demo workspace") || text.includes("demo1234") || html.includes("demo1234")) {
+    throw new Error("Refusing to write login.png: the page still shows the demo block. Use next start with NORTHSTAR_SHOW_DEMO unset.");
+  }
+}
+
 async function sha256(name: string) {
   const bytes = await readFile(path.join(outDir, name));
   return createHash("sha256").update(bytes).digest("hex");
@@ -113,6 +123,28 @@ async function captureConflict(browser: Browser) {
   }
 }
 
+async function captureLogin(page: Page) {
+  await page.goto(`${baseURL}/login`, { waitUntil: "networkidle" });
+  await assertProductionLogin(page);
+  await shot(page, "login.png");
+  console.log(`login.png ${await sha256("login.png")}`);
+}
+
+async function captureAccount(page: Page) {
+  await page.goto(`${baseURL}/account`, { waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: "Change password" }).waitFor();
+  await page.getByLabel("Current password", { exact: true }).waitFor();
+  await page.getByLabel("New password", { exact: true }).waitFor();
+  await page.getByLabel("Confirm new password", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Change password" }).waitFor();
+  const text = await page.locator("body").innerText();
+  if (text.includes("demo1234") || text.includes("Fill demo")) {
+    throw new Error("The account page shows demo credentials");
+  }
+  await shot(page, "change-password.png");
+  console.log(`change-password.png ${await sha256("change-password.png")}`);
+}
+
 async function captureMobile(browser: Browser) {
   const context = await browser.newContext({
     viewport: { width: 375, height: 812 },
@@ -156,13 +188,25 @@ async function main() {
   }
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
 
-  await page.goto(`${baseURL}/login`, { waitUntil: "networkidle" });
-  await shot(page, "login.png");
+  if (process.argv.includes("--refresh")) {
+    await captureLogin(page);
+    await signIn(page);
+    await captureAccount(page);
+    await page.close();
+    await browser.close();
+    console.log(`Wrote screenshots to ${outDir}`);
+    return;
+  }
+
+  await captureLogin(page);
 
   await page.getByLabel("Email").fill(PRIMARY_DEMO.email);
   await page.getByLabel("Password").fill(DEMO_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL("**/p/ORB");
+  await page.getByRole("heading", { name: "Orbit" }).waitFor();
+  await captureAccount(page);
+  await page.goto(`${baseURL}/p/ORB`, { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "Orbit" }).waitFor();
   await shot(page, "board.png");
   await captureRelationColumn(page);

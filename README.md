@@ -4,6 +4,8 @@ Northstar is a lightweight issue tracker for product teams. It covers the everyd
 
 ![Sign in](docs/screenshots/login.png)
 
+This is the production sign-in page. Fill demo and the demo password are not on it.
+
 ## Features
 
 - Email and password accounts. Passwords are hashed with bcrypt. Sessions live in an httpOnly cookie. A signed-in person can change their password; other sessions for that account are signed out.
@@ -66,6 +68,10 @@ At a phone width the sidebar is closed until you open it, and the board scrolls 
 
 ![Mobile board](docs/screenshots/board-mobile.png)
 
+A signed-in person replaces their password at `/account`. Other sessions for that account are signed out. The page does not email a reset link:
+
+![Change password](docs/screenshots/change-password.png)
+
 ## Tech stack
 
 - Next.js 15 App Router, React 19, TypeScript
@@ -120,7 +126,7 @@ To refresh the screenshots in `docs/screenshots/` against a running app:
 npm run screenshots
 ```
 
-That script expects the app at http://127.0.0.1:3000.
+That script expects a production server at http://127.0.0.1:3000 (`next start`, with `NORTHSTAR_SHOW_DEMO` unset). It refuses to write `login.png` when Fill demo or the demo password is on the page. `npm run screenshots -- --refresh` rewrites only `login.png` and `change-password.png`.
 
 ## Tests
 
@@ -194,6 +200,7 @@ Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A pu
 Continued upgrade round:
 
 - [KEYBOARD_MOVE.md](KEYBOARD_MOVE.md) moves a focused board card to the neighboring column from the keyboard.
+- [SCREENSHOTS_REFRESH.md](SCREENSHOTS_REFRESH.md) recaptures the production sign-in page and adds the change-password page.
 
 Follow-up round:
 
