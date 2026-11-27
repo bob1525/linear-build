@@ -39,7 +39,7 @@ Set `DATABASE_URL` back to a `file:` path and use `npm run db:migrate` to run SQ
 | `npm run lint` | Pass. No ESLint warnings or errors |
 | `npm run typecheck` | Pass |
 | `npm test` | **125 passed** (18 files). The previous suite was 122 in 17 files. Three tests were added |
-| `npm run test:e2e` | **58 passed** (1.8 minutes). The SQLite e2e database still migrated and seeded 4 users, 4 projects, and 67 issues. The production build compiled with the Postgres client external |
+| `npm run test:e2e` | **58 passed** (1.3 minutes) after the search retry below. The same suite had passed in 1.8 minutes before that change. The SQLite e2e database still migrated and seeded 4 users, 4 projects, and 67 issues. The production build compiled with the Postgres client external. `shows which issue failed when part of a batch no longer exists` passed on the first attempt (1.7 seconds) |
 
 `tests/unit/postgres-path.test.ts` checks:
 
@@ -58,6 +58,8 @@ The first rate-limit insert sent to that server failed with Postgres `42601`, `s
 `execFileSync` from the test process blocked the event loop, so the embedded server stayed in `LISTEN` and Prisma reported `P1001` (`Can't reach database server`) after its connect timeout. The test awaits `execFile` instead, which leaves the loop free to accept the connection. `db:migrate:pg` itself stays synchronous. A real Postgres server is another process and accepts connections while Node is blocked.
 
 A second Prisma client against the same embedded server failed with `42P05`, `prepared statement "s0" already exists`. PGlite answers every connection from one session, so the seed’s named statement was still there. The test URL adds `pgbouncer=true`, which makes Prisma skip named statements, and `connection_limit=1`. A real Postgres server keeps prepared statements on the connection that created them and does not need `pgbouncer=true`.
+
+Push [46024345954](https://github.com/bob1525/linear-build/actions/runs/46024345954) on `152e3c8` passed with 125 unit tests and 58 end-to-end tests, and no retry. The pull request run of that same commit, [46024361115](https://github.com/bob1525/linear-build/actions/runs/46024361115), passed only because Playwright retried once. `shows which issue failed when part of a batch no longer exists` filled the search box and the URL stayed `http://127.0.0.1:3100/p/ORB` for 10 seconds instead of gaining `q=Batch…`. The retry passed in 2.6 seconds. The page was already hydrated: the test had just used the new-issue dialog. That dialog’s save calls `router.refresh()` and does not wait for it. The search box waits 200ms and then calls `router.push` inside `startTransition`. A push started while the refresh is in flight can be dropped, and nothing issued it again. The search box now commits once more, 250ms later, if the query is still missing. A further keystroke clears that timer.
 
 ## Remaining limitations
 

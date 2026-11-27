@@ -54,7 +54,16 @@ export function ProjectSearch() {
           const value = event.target.value;
           setText(value);
           if (timer.current) window.clearTimeout(timer.current);
-          timer.current = window.setTimeout(() => commit(value), 200);
+          timer.current = window.setTimeout(() => {
+            commit(value);
+            // Creating an issue calls router.refresh(). A push started while
+            // that refresh is in flight can be dropped, so the query never
+            // reaches the URL. One later commit lands it.
+            timer.current = window.setTimeout(() => {
+              const current = new URLSearchParams(window.location.search).get("q") ?? "";
+              if (current !== value.trim()) commit(value);
+            }, 250);
+          }, 200);
         }}
         placeholder="Search title, description, or ID"
         className="h-8 w-full rounded-md border border-line bg-black/20 pl-8 pr-10 text-[13px] outline-none placeholder:text-ink-faint focus:border-accent/80"
