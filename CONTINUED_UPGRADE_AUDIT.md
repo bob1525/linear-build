@@ -79,7 +79,7 @@ Each accepted head was green on both the push workflow and the pull request work
 
 Screenshot hashes from stage 2: `login.png` is `3d2357e32db637c03795a4bf840c05f8de65ccb20c490bd81598c99adc039935`. `change-password.png` is `b7151b52695b994493762eea61e024565d6c17e45dfce13c14fa0c384f3a3420`. Both are 2880×1800.
 
-The Actions run for this audit commit is recorded after that run finishes.
+The Actions run for this audit commit is in the last section.
 
 ## Remaining limitations
 
@@ -95,3 +95,17 @@ The Actions run for this audit commit is recorded after that run finishes.
 - `Board load` warns above 1200 ms and does not fail. On `b241b79` the board-load median was 488 ms and the list-load median was 408 ms.
 - Classic branch protection on `main` returned **403** to this token on 2026-11-27, and the ruleset list was empty. An admin still has to require `Lint, typecheck, and unit tests` and `Playwright`. Do not require `Board load`. CI runs on push and pull request, so each of those names appears twice.
 - [FOLLOWUP_UPGRADE_AUDIT.md](FOLLOWUP_UPGRADE_AUDIT.md) still says this repository does not add a Postgres path, and it still says keyboard users change status from the list or the issue page. Those sentences are the record of that round. The path and the keyboard move are in this round.
+
+## Actions run
+
+Push of `b7b23ba` (the audit, the README index, and the merge checklist): [46029414340](https://github.com/bob1525/linear-build/actions/runs/46029414340), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 15:57:22Z to 15:58:16Z. **125 passed** (18 files).
+- `Playwright`: 2026-11-27 15:57:22Z to 16:00:29Z. **58 passed** (1.8 minutes). `signs up, creates a project, and shows the empty board` passed on the first attempt (905 ms). `shows which issue failed when part of a batch no longer exists` passed on the first attempt (2.1 seconds). `the later saver of an issue gets a conflict prompt` passed on the first attempt (6.3 seconds). The keyboard test passed on the first attempt (646 ms). The move test passed on the first attempt (2.4 seconds).
+
+Pull request of `b7b23ba`: [46029423469](https://github.com/bob1525/linear-build/actions/runs/46029423469), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 15:57:26Z to 15:58:26Z. **125 passed** (18 files).
+- `Playwright`: 2026-11-27 15:57:26Z to 16:00:18Z. **58 passed** (1.6 minutes). Signup passed on the first attempt (880 ms). The batch-search test passed on the first attempt (1.7 seconds). The conflict test passed on the first attempt (3.4 seconds). The keyboard test passed on the first attempt (532 ms). The move test passed on the first attempt (2.5 seconds).
+
+Hosted Performance of `b7b23ba`: [46029423459](https://github.com/bob1525/linear-build/actions/runs/46029423459), conclusion success, 15:57:26Z to 15:58:47Z. Board-load median **432 ms**, `budgetMs=1200` `status=ok`. List-load median **390 ms**, 19 mounted at the top and 18 at the end.
