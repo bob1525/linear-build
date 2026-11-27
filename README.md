@@ -191,16 +191,20 @@ Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A pu
 
 ## Documentation
 
+Upgrade round:
+
+- [UPGRADE_ROUND_AUDIT.md](UPGRADE_ROUND_AUDIT.md) summarizes the round and records the latest test run.
+- [KEYBOARD_FLAKE_FIX.md](KEYBOARD_FLAKE_FIX.md) waits for the shortcut listener before `login()` returns.
+- [AUTH_LIMITS.md](AUTH_LIMITS.md) stores those rate limits in SQLite and ignores forwarded addresses unless `TRUST_PROXY=1`.
+- [MIGRATIONS.md](MIGRATIONS.md) is the versioned schema history and the upgrade steps for an older SQLite file.
+- [BOARD_VIRTUALIZATION.md](BOARD_VIRTUALIZATION.md) windows long board columns and records the 500-issue measurement.
+
 Hardening round:
 
 - [NEXT_ROUND_AUDIT.md](NEXT_ROUND_AUDIT.md) summarizes the round and records the latest test run.
 - [SCREENSHOTS_FIX.md](SCREENSHOTS_FIX.md) explains why the relations shot is a Todo-column crop and why the conflict shot waits out the toast.
 - [PERF_THRESHOLD.md](PERF_THRESHOLD.md) sets the board-load warning at 1200 ms and records the drag frame gap.
 - [AUTH_HARDENING.md](AUTH_HARDENING.md) covers the hidden Fill demo block and the first rate limits.
-- [KEYBOARD_FLAKE_FIX.md](KEYBOARD_FLAKE_FIX.md) waits for the shortcut listener before `login()` returns.
-- [AUTH_LIMITS.md](AUTH_LIMITS.md) stores those rate limits in SQLite and ignores forwarded addresses unless `TRUST_PROXY=1`.
-- [MIGRATIONS.md](MIGRATIONS.md) is the versioned schema history and the upgrade steps for an older SQLite file.
-- [BOARD_VIRTUALIZATION.md](BOARD_VIRTUALIZATION.md) windows long board columns and records the 500-issue measurement.
 - [MERGE_READINESS.md](MERGE_READINESS.md) names the checks to require and the steps for merging PR #1.
 
 Earlier notes: [CI_SETUP.md](CI_SETUP.md), [SCREENSHOTS_UPDATE.md](SCREENSHOTS_UPDATE.md), [PERF_AUTOMATION.md](PERF_AUTOMATION.md), [MOBILE_VERIFICATION.md](MOBILE_VERIFICATION.md), [FINAL_ROUND_AUDIT.md](FINAL_ROUND_AUDIT.md), [PERFORMANCE.md](PERFORMANCE.md), [DRAG_ROOT_CAUSE.md](DRAG_ROOT_CAUSE.md), [RELATION_IMPLEMENTATION.md](RELATION_IMPLEMENTATION.md), [SAVED_VIEWS.md](SAVED_VIEWS.md), [BATCH_OPERATIONS.md](BATCH_OPERATIONS.md), [EDGE_CASES.md](EDGE_CASES.md), and [TEST_PASS.md](TEST_PASS.md).
