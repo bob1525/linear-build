@@ -193,6 +193,9 @@ Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A pu
 
 Follow-up round:
 
+- [FOLLOWUP_UPGRADE_AUDIT.md](FOLLOWUP_UPGRADE_AUDIT.md) summarizes the round and records the latest test run.
+- [CONFLICT_RELOAD_FIX.md](CONFLICT_RELOAD_FIX.md) replaces the title on conflict reload so the field does not keep a joined draft.
+- [LIST_VIRTUALIZATION.md](LIST_VIRTUALIZATION.md) windows long lists and records the 500-issue list measurement.
 - [PASSWORD_CHANGE.md](PASSWORD_CHANGE.md) is the signed-in password change, its rate limit, and what still needs a mail provider.
 - [A11Y.md](A11Y.md) is the keyboard and screen-reader pass for the board, the list, dialogs, and the password form.
 
