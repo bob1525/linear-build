@@ -16,11 +16,13 @@ export function listWindow({
   scrollTop,
   viewport,
   heights,
+  pinIndexes,
 }: {
   count: number;
   scrollTop: number;
   viewport: number;
   heights?: Array<number | undefined>;
+  pinIndexes?: number[];
 }): ColumnWindow {
   return columnWindow({
     count,
@@ -30,6 +32,7 @@ export function listWindow({
     estimate: LIST_ROW_ESTIMATE,
     overscan: LIST_OVERSCAN,
     heights,
+    pinIndexes,
     minimum: LIST_VIRTUAL_MIN,
   });
 }

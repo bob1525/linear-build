@@ -5,6 +5,8 @@ export function Avatar({ name, size = 20, className }: { name: string; size?: nu
   return (
     <span
       title={name}
+      role="img"
+      aria-label={name}
       className={cn("inline-flex shrink-0 items-center justify-center rounded-full font-medium text-white", className)}
       style={{
         width: size,

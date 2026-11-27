@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, useTransition, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { updateIssueAction } from "@/lib/actions/issues";
-import { STATUSES, statusLabel, type Status } from "@/lib/constants";
+import { STATUSES, priorityLabel, statusLabel, type Status } from "@/lib/constants";
 import { compareIssues } from "@/lib/issue-view";
 import { listWindow } from "@/lib/list-window";
 import type { IssueSort } from "@/lib/view-state";
@@ -16,6 +16,8 @@ import { BlockingMarks } from "@/components/blocking-marks";
 import { PriorityIcon, StatusIcon } from "@/components/icons";
 import { ConflictPrompt } from "@/components/conflict-prompt";
 import { Menu, MenuOption } from "@/components/menu";
+import { focusRing } from "@/components/ui";
+import { useWindowFocus, windowKeyAction } from "@/components/use-window-focus";
 
 export function IssueList({
   issues,
@@ -39,6 +41,8 @@ export function IssueList({
   const [error, setError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<{ issueId: string; status: Status; actorName: string | null } | null>(null);
   const [overwritePending, setOverwritePending] = useState(false);
+  const [keyboardIndex, setKeyboardIndex] = useState<number | null>(null);
+  const hintId = useId();
 
   useLayoutEffect(() => {
     const el = scrollerRef.current;
@@ -80,7 +84,21 @@ export function IssueList({
     scrollTop,
     viewport,
     heights: sorted.map((issue) => heights[issue.id]),
+    pinIndexes: keyboardIndex === null ? undefined : [keyboardIndex],
   });
+  const focusAt = useWindowFocus(scrollerRef, layout.offsets);
+  const moveToRef = useRef<(index: number) => void>(() => undefined);
+  moveToRef.current = (index: number) => {
+    setKeyboardIndex(index);
+    focusAt(index);
+  };
+
+  function onKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    const action = windowKeyAction(event.nativeEvent, sorted.length);
+    if (!action || action.type !== "move") return;
+    event.preventDefault();
+    moveToRef.current(action.index);
+  }
 
   async function overwrite() {
     if (!conflict) return;
@@ -129,6 +147,15 @@ export function IssueList({
         </div>
         <div
           ref={scrollerRef}
+          role="region"
+          aria-label={`Issue list, ${sorted.length} issues`}
+          aria-describedby={hintId}
+          onKeyDown={onKeyDown}
+          onBlur={(event) => {
+            const next = event.relatedTarget;
+            if (next instanceof Node && event.currentTarget.contains(next)) return;
+            setKeyboardIndex(null);
+          }}
           data-testid="list-scroll"
           data-virtualized={layout.virtualized ? "true" : "false"}
           data-rendered-count={layout.indexes.length}
@@ -137,6 +164,9 @@ export function IssueList({
           className="min-h-0 flex-1 overflow-y-auto"
           style={{ overflowAnchor: "none" }}
         >
+        <p id={hintId} className="sr-only">
+          Use the arrow keys, Home, and End to move between issues. An issue that is off screen is shown when you move to it.
+        </p>
         <ul className="relative w-full shrink-0" style={{ height: layout.total }}>
           {layout.indexes.map((index) => {
             const issue = sorted[index];
@@ -149,6 +179,9 @@ export function IssueList({
               data-blocked={issue.blockedByCount > 0 ? "true" : "false"}
               data-blocks={issue.blocksCount > 0 ? "true" : "false"}
               data-selected={selectedIds.includes(issue.id) ? "true" : "false"}
+              data-window-index={index}
+              aria-setsize={sorted.length}
+              aria-posinset={index + 1}
               onClickCapture={
                 onSelect
                   ? (event) => {
@@ -179,18 +212,22 @@ export function IssueList({
                   }}
                   className={cn(
                     "h-4 w-4 rounded border border-line",
+                    focusRing,
                     selectedIds.includes(issue.id) ? "border-accent bg-accent" : "bg-black/20 hover:border-ink-faint",
                   )}
                 />
               ) : (
                 <span />
               )}
-              <PriorityIcon priority={issue.priority} />
-              <Link href={`/p/${projectKey}/issues/${issue.number}`} className="font-mono text-[12px] text-ink-faint hover:text-ink">
+              <span className="inline-flex items-center">
+                <PriorityIcon priority={issue.priority} />
+                <span className="sr-only">Priority: {priorityLabel(issue.priority)}</span>
+              </span>
+              <Link href={`/p/${projectKey}/issues/${issue.number}`} className={cn("font-mono text-[12px] text-ink-faint hover:text-ink", focusRing)}>
                 {issue.key}
               </Link>
               <div className="flex min-w-0 items-center gap-2">
-                <Link href={`/p/${projectKey}/issues/${issue.number}`} className="truncate text-[13px] font-medium hover:text-white" title={issue.title}>
+                <Link data-issue-focus="" href={`/p/${projectKey}/issues/${issue.number}`} className={cn("truncate text-[13px] font-medium hover:text-white", focusRing)} title={issue.title}>
                   {issue.title}
                 </Link>
                 <BlockingMarks issue={issue} />
@@ -203,9 +240,10 @@ export function IssueList({
               </div>
               <span className={cn("text-[12px]", isOverdue(issue.dueDate, issue.status) ? "text-red-300" : "text-ink-faint")}>
                 {issue.dueDate ? formatDueDate(issue.dueDate) : "—"}
+                {isOverdue(issue.dueDate, issue.status) ? <span className="sr-only">, overdue</span> : null}
               </span>
               <span className="justify-self-end">
-                {issue.assignee ? <Avatar name={issue.assignee.name} /> : <span className="block h-5 w-5 rounded-full border border-dashed border-line" />}
+                {issue.assignee ? <Avatar name={issue.assignee.name} /> : <span role="img" aria-label="Unassigned" className="block h-5 w-5 rounded-full border border-dashed border-line" />}
               </span>
             </li>
             );

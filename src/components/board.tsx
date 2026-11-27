@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { DndContext, DragOverlay, PointerSensor, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { updateIssueAction } from "@/lib/actions/issues";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/cn";
 import { ConflictPrompt } from "@/components/conflict-prompt";
 import { IssueCard } from "@/components/issue-card";
 import { StatusIcon } from "@/components/icons";
+import { useWindowFocus, windowKeyAction } from "@/components/use-window-focus";
 
 type PendingMove = { status: Status; previous: Status; ticket: number };
 
@@ -92,6 +93,24 @@ export function Board({
 
   const groups = groupByStatus(items, sort);
   const active = items.find((issue) => issue.id === activeId) ?? null;
+  const movers = useRef(new Map<Status, (index: number) => void>());
+  const register = useCallback((status: Status, move: ((index: number) => void) | null) => {
+    if (move) movers.current.set(status, move);
+    else movers.current.delete(status);
+  }, []);
+  const hintId = useId();
+
+  function cross(status: Status, direction: -1 | 1, index: number) {
+    const ids = STATUSES.map((item) => item.id);
+    const at = ids.indexOf(status);
+    const nextStatus = ids[at + direction];
+    if (!nextStatus) return;
+    const count = groups[nextStatus].length;
+    if (count === 0) return;
+    const column = document.querySelector(`[data-testid="column-${nextStatus}"]`);
+    if (column instanceof HTMLElement) column.scrollIntoView({ block: "nearest", inline: "nearest" });
+    movers.current.get(nextStatus)?.(Math.min(index, count - 1));
+  }
 
   function onDragEnd(event: DragEndEvent) {
     draggingRef.current = false;
@@ -172,7 +191,10 @@ export function Board({
             {error}
           </p>
         ) : null}
-        <div data-testid="board-scroll" className="flex min-h-0 flex-1 gap-3 overflow-x-auto px-3 pb-4 pt-3 sm:px-4">
+        <p id={hintId} className="sr-only">
+          Use the arrow keys to move between cards. Home and End move to the ends of a column. A card that is off screen is shown when you move to it.
+        </p>
+        <div data-testid="board-scroll" role="region" aria-label="Board" aria-describedby={hintId} className="flex min-h-0 flex-1 gap-3 overflow-x-auto px-3 pb-4 pt-3 sm:px-4">
           {STATUSES.map((status) => (
             <Column
               key={status.id}
@@ -183,6 +205,8 @@ export function Board({
               onSelect={onSelect}
               activeId={activeId}
               pinnedIds={pinnedIds}
+              onRegister={register}
+              onCross={cross}
             />
           ))}
         </div>
@@ -218,6 +242,8 @@ function Column({
   onSelect,
   activeId,
   pinnedIds,
+  onRegister,
+  onCross,
 }: {
   status: Status;
   issues: IssueDTO[];
@@ -226,12 +252,16 @@ function Column({
   onSelect?: (id: string, mods: { shift: boolean; meta: boolean }) => void;
   activeId: string | null;
   pinnedIds: string[];
+  onRegister: (status: Status, move: ((index: number) => void) | null) => void;
+  onCross: (status: Status, direction: -1 | 1, index: number) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const labelId = useId();
   const [scrollTop, setScrollTop] = useState(0);
   const [viewport, setViewport] = useState(0);
   const [heights, setHeights] = useState<Record<string, number>>({});
+  const [keyboardIndex, setKeyboardIndex] = useState<number | null>(null);
 
   useLayoutEffect(() => {
     const el = scrollerRef.current;
@@ -273,6 +303,7 @@ function Column({
     const index = issues.findIndex((issue) => issue.id === id);
     if (index >= 0) pinIndexes.push(index);
   }
+  if (keyboardIndex !== null) pinIndexes.push(keyboardIndex);
   const layout = columnWindow({
     count: issues.length,
     scrollTop,
@@ -280,10 +311,30 @@ function Column({
     heights: issues.map((issue) => heights[issue.id]),
     pinIndexes,
   });
+  const focusAt = useWindowFocus(scrollerRef, layout.offsets);
+  const moveToRef = useRef<(index: number) => void>(() => undefined);
+  moveToRef.current = (index: number) => {
+    setKeyboardIndex(index);
+    focusAt(index);
+  };
+
+  useEffect(() => {
+    onRegister(status, (index) => moveToRef.current(index));
+    return () => onRegister(status, null);
+  }, [onRegister, status]);
+
+  function onKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    const action = windowKeyAction(event.nativeEvent, issues.length);
+    if (!action) return;
+    event.preventDefault();
+    if (action.type === "move") moveToRef.current(action.index);
+    else onCross(status, action.direction, action.index);
+  }
 
   return (
     <section
       ref={setNodeRef}
+      aria-labelledby={labelId}
       data-testid={`column-${status}`}
       data-drop-target={isOver ? "true" : "false"}
       className={cn(
@@ -293,11 +344,19 @@ function Column({
     >
       <header className="flex items-center gap-2 px-3 py-2.5">
         <StatusIcon status={status} />
-        <h2 className="text-[13px] font-medium">{statusLabel(status)}</h2>
+        <h2 id={labelId} className="text-[13px] font-medium">
+          {statusLabel(status)}
+        </h2>
         <span className="text-[12px] tabular-nums text-ink-faint">{issues.length}</span>
       </header>
       <div
         ref={scrollerRef}
+        onKeyDown={onKeyDown}
+        onBlur={(event) => {
+          const next = event.relatedTarget;
+          if (next instanceof Node && event.currentTarget.contains(next)) return;
+          setKeyboardIndex(null);
+        }}
         data-testid={`column-scroll-${status}`}
         data-column-scroll="true"
         data-virtualized={layout.virtualized ? "true" : "false"}
@@ -312,13 +371,19 @@ function Column({
             {isOver ? "Drop here" : "No issues"}
           </p>
         ) : (
-          <div className="relative w-full shrink-0" style={{ height: layout.total }}>
+          <div role="list" aria-label={`${statusLabel(status)} issues, ${issues.length} total`} className="relative w-full shrink-0" style={{ height: layout.total }}>
             {layout.indexes.map((index) => {
               const issue = issues[index];
               if (!issue) return null;
               return (
                 <div key={issue.id} ref={(node) => measure(issue.id, node)} className="absolute inset-x-0" style={{ top: layout.offsets[index] }}>
-                  <IssueCard issue={issue} projectKey={projectKey} selected={selectedIds.includes(issue.id)} onSelect={onSelect} />
+                  <IssueCard
+                    issue={issue}
+                    projectKey={projectKey}
+                    selected={selectedIds.includes(issue.id)}
+                    onSelect={onSelect}
+                    position={{ index, count: issues.length }}
+                  />
                 </div>
               );
             })}

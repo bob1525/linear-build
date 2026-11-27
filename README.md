@@ -194,6 +194,7 @@ Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A pu
 Follow-up round:
 
 - [PASSWORD_CHANGE.md](PASSWORD_CHANGE.md) is the signed-in password change, its rate limit, and what still needs a mail provider.
+- [A11Y.md](A11Y.md) is the keyboard and screen-reader pass for the board, the list, dialogs, and the password form.
 
 Upgrade round:
 

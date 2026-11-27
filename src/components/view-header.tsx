@@ -47,7 +47,7 @@ export function ViewHeader({
             <h1 className="truncate text-[15px] font-semibold tracking-tight">{project.name}</h1>
             <p className="truncate text-[12px] text-ink-faint">{project.description}</p>
           </div>
-          <div className="inline-flex rounded-md border border-line p-0.5" aria-label="Views">
+          <div role="group" aria-label="Views" className="inline-flex rounded-md border border-line p-0.5">
             <ViewLink href={`/p/${project.key}${suffix}`} active={view === "board"} label="Board" icon={<BoardIcon />} />
             <ViewLink href={`/p/${project.key}/list${suffix}`} active={view === "list"} label="List" icon={<ListIcon />} />
           </div>
@@ -86,7 +86,7 @@ function ViewLink({ href, active, label, icon }: { href: string; active: boolean
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "inline-flex h-6 items-center gap-1 rounded px-2 text-[12px]",
+        "inline-flex h-6 items-center gap-1 rounded px-2 text-[12px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
         active ? "bg-white/10 text-ink" : "text-ink-muted hover:text-ink",
       )}
     >

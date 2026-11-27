@@ -4,12 +4,13 @@ import { memo } from "react";
 import Link from "next/link";
 import { useDraggable } from "@dnd-kit/core";
 import type { IssueDTO } from "@/lib/types";
-import { cn } from "@/lib/cn";
 import { isOverdue, formatDueDate } from "@/lib/format";
 import { priorityLabel } from "@/lib/constants";
 import { Avatar, LabelPill } from "@/components/avatar";
 import { BlockingMarks } from "@/components/blocking-marks";
 import { CalendarIcon, GripIcon, PriorityIcon } from "@/components/icons";
+import { focusRing } from "@/components/ui";
+import { cn } from "@/lib/cn";
 
 export function IssueCard({
   issue,
@@ -17,15 +18,17 @@ export function IssueCard({
   overlay = false,
   selected = false,
   onSelect,
+  position,
 }: {
   issue: IssueDTO;
   projectKey: string;
   overlay?: boolean;
   selected?: boolean;
   onSelect?: (id: string, mods: { shift: boolean; meta: boolean }) => void;
+  position?: { index: number; count: number };
 }) {
   if (overlay) return <CardFace issue={issue} projectKey={projectKey} overlay />;
-  return <DraggableCard issue={issue} projectKey={projectKey} selected={selected} onSelect={onSelect} />;
+  return <DraggableCard issue={issue} projectKey={projectKey} selected={selected} onSelect={onSelect} position={position} />;
 }
 
 function DraggableCard({
@@ -33,11 +36,13 @@ function DraggableCard({
   projectKey,
   selected,
   onSelect,
+  position,
 }: {
   issue: IssueDTO;
   projectKey: string;
   selected: boolean;
   onSelect?: (id: string, mods: { shift: boolean; meta: boolean }) => void;
+  position?: { index: number; count: number };
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: issue.id });
   return (
@@ -47,6 +52,7 @@ function DraggableCard({
         projectKey={projectKey}
         selected={selected}
         onSelect={onSelect}
+        position={position}
         placeholder={isDragging}
         dragHandle={{ attributes, listeners }}
       />
@@ -61,6 +67,7 @@ const CardFace = memo(function CardFace({
   placeholder = false,
   selected = false,
   onSelect,
+  position,
   dragHandle,
 }: {
   issue: IssueDTO;
@@ -69,6 +76,7 @@ const CardFace = memo(function CardFace({
   placeholder?: boolean;
   selected?: boolean;
   onSelect?: (id: string, mods: { shift: boolean; meta: boolean }) => void;
+  position?: { index: number; count: number };
   dragHandle?: {
     attributes: ReturnType<typeof useDraggable>["attributes"];
     listeners: ReturnType<typeof useDraggable>["listeners"];
@@ -83,6 +91,10 @@ const CardFace = memo(function CardFace({
       data-blocks={issue.blocksCount > 0 ? "true" : "false"}
       data-placeholder={placeholder ? "true" : undefined}
       data-selected={selected ? "true" : "false"}
+      data-window-index={position?.index}
+      role={position ? "listitem" : undefined}
+      aria-setsize={position?.count}
+      aria-posinset={position ? position.index + 1 : undefined}
       onClickCapture={
         onSelect
           ? (event) => {
@@ -105,7 +117,7 @@ const CardFace = memo(function CardFace({
         {dragHandle ? (
           <button
             type="button"
-            className="mt-0.5 cursor-grab rounded p-0.5 text-ink-faint hover:bg-white/5 hover:text-ink-muted active:cursor-grabbing"
+            className={cn("mt-0.5 cursor-grab rounded p-0.5 text-ink-faint hover:bg-white/5 hover:text-ink-muted active:cursor-grabbing", focusRing)}
             aria-label={`Drag ${issue.key}`}
             data-testid={`drag-${issue.key}`}
             {...dragHandle.listeners}
@@ -117,14 +129,16 @@ const CardFace = memo(function CardFace({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <PriorityIcon priority={issue.priority} />
-            <span className="font-mono text-[11px] text-ink-faint" title={priorityLabel(issue.priority)}>
+            <span className="sr-only">Priority: {priorityLabel(issue.priority)}</span>
+            <span className="font-mono text-[11px] text-ink-faint">
               {issue.key}
             </span>
             <BlockingMarks issue={issue} />
           </div>
           <Link
             href={`/p/${projectKey}/issues/${issue.number}`}
-            className="mt-1 block text-[13px] font-medium leading-5 text-ink hover:text-white"
+            data-issue-focus=""
+            className={cn("mt-1 block text-[13px] font-medium leading-5 text-ink hover:text-white", focusRing)}
           >
             {issue.title}
           </Link>
@@ -140,11 +154,12 @@ const CardFace = memo(function CardFace({
               <span className={cn("inline-flex items-center gap-1 text-[11px]", overdue ? "text-red-300" : "text-ink-faint")}>
                 <CalendarIcon />
                 {formatDueDate(issue.dueDate)}
+                {overdue ? <span className="sr-only">, overdue</span> : null}
               </span>
             ) : (
               <span />
             )}
-            {issue.assignee ? <Avatar name={issue.assignee.name} /> : <span className="h-5 w-5 rounded-full border border-dashed border-line" title="Unassigned" />}
+            {issue.assignee ? <Avatar name={issue.assignee.name} /> : <span role="img" aria-label="Unassigned" className="h-5 w-5 rounded-full border border-dashed border-line" />}
           </div>
         </div>
       </div>
@@ -156,7 +171,9 @@ const CardFace = memo(function CardFace({
   prev.overlay === next.overlay &&
   prev.placeholder === next.placeholder &&
   prev.selected === next.selected &&
-  prev.onSelect === next.onSelect,
+  prev.onSelect === next.onSelect &&
+  prev.position?.index === next.position?.index &&
+  prev.position?.count === next.position?.count,
 );
 
 function SelectBox({
@@ -182,6 +199,7 @@ function SelectBox({
       }}
       className={cn(
         "mt-0.5 h-4 w-4 shrink-0 rounded border border-line",
+        focusRing,
         selected ? "border-accent bg-accent" : "bg-black/20 hover:border-ink-faint",
       )}
     />

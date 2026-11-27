@@ -150,6 +150,12 @@ test("the later saver of an issue gets a conflict prompt", async ({ browser }) =
     const prompt = ava.getByTestId("conflict-prompt");
     await expect(prompt).toBeVisible();
     await expect(prompt).toContainText("Marcus Hale");
+    await expect(prompt).toHaveAttribute("role", "alertdialog");
+    await expect(prompt.getByTestId("conflict-reload")).toBeFocused();
+    await ava.keyboard.press("Tab");
+    await expect(prompt.getByTestId("conflict-overwrite")).toBeFocused();
+    await ava.keyboard.press("Shift+Tab");
+    await expect(prompt.getByTestId("conflict-reload")).toBeFocused();
     await prompt.getByTestId("conflict-reload").click();
     await expect(prompt).toBeHidden();
     await expect(ava.getByLabel("Title")).toHaveValue(marcusTitle);
