@@ -172,3 +172,12 @@ model Activity {
 
   @@index([issueId, createdAt])
 }
+
+model RateLimitEvent {
+  id     String   @id @default(cuid())
+  bucket String
+  key    String
+  at     DateTime
+
+  @@index([bucket, key, at])
+}

@@ -25,12 +25,32 @@ describe("showDemoCredentials", () => {
 });
 
 describe("readClientAddress", () => {
+  const trust = { TRUST_PROXY: "1" };
+
   it("uses the first forwarded address, then x-real-ip, then local", () => {
-    expect(readClientAddress((name) => (name === "x-forwarded-for" ? "203.0.113.4, 10.0.0.1" : null))).toBe(
-      "203.0.113.4",
-    );
-    expect(readClientAddress((name) => (name === "x-real-ip" ? "198.51.100.8" : null))).toBe("198.51.100.8");
-    expect(readClientAddress(() => null)).toBe("local");
+    expect(
+      readClientAddress((name) => (name === "x-forwarded-for" ? "203.0.113.4, 10.0.0.1" : null), trust),
+    ).toBe("203.0.113.4");
+    expect(readClientAddress((name) => (name === "x-real-ip" ? "198.51.100.8" : null), trust)).toBe("198.51.100.8");
+    expect(readClientAddress(() => null, trust)).toBe("local");
+    expect(
+      readClientAddress((name) => {
+        if (name === "x-forwarded-for") return "203.0.113.9, 10.0.0.1";
+        if (name === "x-real-ip") return "198.51.100.8";
+        return null;
+      }, trust),
+    ).toBe("203.0.113.9");
+    expect(
+      readClientAddress((name) => (name === "x-forwarded-for" ? "c".repeat(120) : null), trust),
+    ).toHaveLength(80);
+  });
+
+  it("ignores forwarded headers unless TRUST_PROXY is exactly 1", () => {
+    const forwarded = (name: string) => (name === "x-forwarded-for" ? "203.0.113.4, 10.0.0.1" : null);
+    expect(readClientAddress(forwarded, {})).toBe("local");
+    expect(readClientAddress(forwarded, { TRUST_PROXY: "0" })).toBe("local");
+    expect(readClientAddress(forwarded, { TRUST_PROXY: "true" })).toBe("local");
+    expect(readClientAddress((name) => (name === "x-real-ip" ? "198.51.100.8" : null), {})).toBe("local");
   });
 });
 

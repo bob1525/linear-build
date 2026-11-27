@@ -53,11 +53,16 @@ export function resetAuthRateLimits() {
   signupsByAddress.reset();
 }
 
-export function readClientAddress(get: (name: string) => string | null): string {
-  const forwarded = get("x-forwarded-for")?.split(",")[0]?.trim();
-  if (forwarded) return forwarded.slice(0, 80);
-  const real = get("x-real-ip")?.trim();
-  if (real) return real.slice(0, 80);
+export function readClientAddress(
+  get: (name: string) => string | null,
+  env: { TRUST_PROXY?: string } = { TRUST_PROXY: process.env.TRUST_PROXY },
+): string {
+  if (env.TRUST_PROXY === "1") {
+    const forwarded = get("x-forwarded-for")?.split(",")[0]?.trim();
+    if (forwarded) return forwarded.slice(0, 80);
+    const real = get("x-real-ip")?.trim();
+    if (real) return real.slice(0, 80);
+  }
   return "local";
 }
 

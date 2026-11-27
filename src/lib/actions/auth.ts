@@ -6,15 +6,8 @@ import { createSession, destroySession } from "@/lib/auth";
 import { getLandingPath } from "@/lib/data";
 import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
-import {
-  RATE_LIMIT_MESSAGE,
-  consumeIfAllowed,
-  loginFailuresByAddress,
-  loginFailuresByEmail,
-  readClientAddress,
-  signupsByAddress,
-  signupsByEmail,
-} from "@/lib/rate-limit";
+import { RATE_LIMIT_MESSAGE, readClientAddress } from "@/lib/rate-limit";
+import { consumeSignup, loginIsLimited, recordLoginFailure } from "@/lib/rate-limit-store";
 import { fail, ok, type ActionResult } from "@/lib/types";
 import { firstIssue, loginSchema, signupSchema } from "@/lib/validators";
 
@@ -32,15 +25,11 @@ export async function loginAction(input: {
 
   const address = await clientAddress();
   const email = parsed.data.email;
-  if (!loginFailuresByEmail.check(email).allowed || !loginFailuresByAddress.check(address).allowed) {
-    return fail(RATE_LIMIT_MESSAGE);
-  }
+  if (await loginIsLimited(prisma, email, address)) return fail(RATE_LIMIT_MESSAGE);
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
-    const now = Date.now();
-    loginFailuresByEmail.hit(email, now);
-    loginFailuresByAddress.hit(address, now);
+    await recordLoginFailure(prisma, email, address);
     return fail("Invalid email or password");
   }
 
@@ -58,10 +47,7 @@ export async function signupAction(input: {
   if (!parsed.success) return fail(firstIssue(parsed.error));
 
   const address = await clientAddress();
-  const limited = consumeIfAllowed([
-    { limiter: signupsByEmail, key: parsed.data.email },
-    { limiter: signupsByAddress, key: address },
-  ]);
+  const limited = await consumeSignup(prisma, parsed.data.email, address);
   if (limited) return fail(limited);
 
   try {
