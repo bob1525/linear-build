@@ -50,4 +50,16 @@ After the wait, the spec passed three times on its own (2.3 seconds, 2.4 seconds
 
 ## Actions run
 
-Recorded after the workflow for this commit finishes.
+`62438c1` is not the recorded head. Its push run is the flake described above. These runs are `ca64564`, which waits for the save before reload. No flaky test and no retry.
+
+Push of `ca64564`: [46014023762](https://github.com/bob1525/linear-build/actions/runs/46014023762), conclusion success.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 14:13:53Z to 14:14:53Z. **118 passed** (17 files).
+- `Playwright`: 2026-11-27 14:13:53Z to 14:16:44Z. **58 passed** (1.7 minutes). `the later saver of an issue gets a conflict prompt` passed on the first attempt (3.6 seconds). The keyboard test passed on the first attempt (500 ms). The move test passed on the first attempt (2.5 seconds). The Backlog edge passed on the first attempt (638 ms).
+
+Pull request of the same commit: [46014038456](https://github.com/bob1525/linear-build/actions/runs/46014038456), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 14:13:59Z to 14:14:41Z. **118 passed** (17 files).
+- `Playwright`: 2026-11-27 14:13:59Z to 14:16:47Z. **58 passed** (1.5 minutes). The conflict test passed on the first attempt (2.7 seconds). The keyboard test passed on the first attempt (534 ms). The move test passed on the first attempt (2.8 seconds). The Backlog edge passed on the first attempt (972 ms).
+
+Performance on the same commit, not required: [46014038473](https://github.com/bob1525/linear-build/actions/runs/46014038473), conclusion success. Board-load median 488 ms, `status=ok`. List-load median 438 ms, 19 mounted at the top and 18 at the end.
