@@ -55,6 +55,8 @@ Log lines: `PERF boardLoadMedianMs=431 budgetMs=1200 status=ok dragFrameP50Ms=16
 
 The frame gap was already one frame before this stage, so it did not get smaller. The load time moved from 460 ms to 431 ms. The document went from every card to 36.
 
+The pull-request Performance run for this commit, [45984602682](https://github.com/bob1525/linear-build/actions/runs/45984602682), succeeded (10:44:16Z to 10:45:45Z). `PERF boardLoadMedianMs=471 budgetMs=1200 status=ok dragFrameP50Ms=16.7,16.7 dragFrameMaxMs=16.8,16.8` and `PERF scrollMountedAtTop=9 scrollMountedAtEnd=9 scrollMs=429 scrollFrameP50Ms=16.7 scrollFrameMaxMs=16.8`. No board-load warning.
+
 ## Problems found
 
 The first end-to-end run never reached Relay backlog 12. `scrollTop` was only a couple of cards, and the drag helper waited until the test timed out. The virtual list is a flex child. Flex shrink collapsed its explicit height to the viewport, so `scrollHeight` did not include the unmounted cards. `shrink-0` keeps that height. The window, drag, and edge files then passed, and the full `npm run test:e2e` passed 47.
@@ -73,4 +75,12 @@ The first after-measurement crashed in the browser with `ReferenceError: __name 
 
 ## Actions run
 
-Recorded after the workflow for this commit finishes.
+Push of `7bfd0b9`: [45984590333](https://github.com/bob1525/linear-build/actions/runs/45984590333), conclusion success.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 10:44:11Z to 10:45:12Z. **95 passed**.
+- `Playwright`: 2026-11-27 10:44:11Z to 10:46:58Z. **47 passed** (1.5 minutes). No flaky test. The keyboard test passed on the first attempt (498 ms).
+
+Pull request of the same commit: [45984602592](https://github.com/bob1525/linear-build/actions/runs/45984602592), conclusion success.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 10:44:16Z to 10:45:21Z. **95 passed**.
+- `Playwright`: 2026-11-27 10:44:16Z to 10:46:52Z. **47 passed** (1.4 minutes). No flaky test. The keyboard test passed on the first attempt (433 ms).
