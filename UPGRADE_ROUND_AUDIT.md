@@ -70,7 +70,18 @@ The Actions run for this audit commit is in the next section.
 - `TRUST_PROXY` defaults to off. Forwarded address headers are ignored, and every caller shares `local`. Set it to `1` only when the proxy replaces those headers. If the proxy forwards the client's own header, the client can still choose an address. Successful sign-ins are not limited. Eight failed passwords per email still run bcrypt. A parallel burst can pass the check before either insert lands.
 - Back up a file that has real rows before `npm run db:migrate`. The drift check runs after the history is recorded. If it fails, restore the backup. A file missing a baseline table is left alone. `npm run db:push` still does not record history. `npm run db:setup` still reseeds, so do not point it at a production file.
 - `Board load` warns above 1200 ms and does not fail. Drag frame gap is recorded only. On the hosted run for `7bfd0b9` the median was 471 ms and the frame gap stayed at one frame.
+- `the later saver of an issue gets a conflict prompt` can fail once. On the pull request run for this audit, Reload left the title as the other user's title joined to the title this page had loaded (`… marcus` + `… original`). That value stayed for the whole 10 second timeout. The CI retry passed, and the push run of the same commit did not flake. The same joined title showed up once locally during the board-window work, after two drag timeouts, and the next full run passed. Reload bumps a counter and calls `router.refresh()` while `issue.title` is still the old prop, so `TitleEditor` writes that stale title and then the refreshed title. A field marked dirty ignores the later server title. The assertion was not changed. A green Playwright job that reports only this flake is that race. A red Playwright job is not a pass.
 
 ## Actions run
 
-Recorded after the workflow for this commit finishes.
+Push of `f62b366` (the audit and the README index): [45986004157](https://github.com/bob1525/linear-build/actions/runs/45986004157), conclusion success.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 10:54:22Z to 10:55:30Z. **95 passed**.
+- `Playwright`: 2026-11-27 10:54:21Z to 10:56:54Z. **47 passed** (1.3 minutes). No flaky test. The keyboard test passed on the first attempt (515 ms).
+
+Pull request of `f62b366`: [45986012092](https://github.com/bob1525/linear-build/actions/runs/45986012092), conclusion success.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 10:54:25Z to 10:55:26Z. **95 passed**.
+- `Playwright`: 2026-11-27 10:54:25Z to 10:57:09Z. **46 passed** and **1 flaky**. The keyboard test passed on the first attempt (498 ms). `the later saver of an issue gets a conflict prompt` failed on the first attempt, then passed on the CI retry (3.0 seconds).
+
+Hosted Performance of `f62b366`: [45986012490](https://github.com/bob1525/linear-build/actions/runs/45986012490), conclusion success, 10:54:25Z to 10:55:56Z. Board-load median **470 ms**, `budgetMs=1200` `status=ok`. Backlog mounted 9 cards at the top and 9 at the end.
