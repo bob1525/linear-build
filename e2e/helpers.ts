@@ -7,6 +7,9 @@ export async function login(page: Page, email: string = PRIMARY_DEMO.email, pass
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/p\/ORB/);
+  // The board URL is ready before the shell effect attaches the `c` and `/`
+  // listener. Returning here used to let that first keypress do nothing.
+  await expect(page.locator("html")).toHaveAttribute("data-shortcuts", "ready");
 }
 
 export async function scrollColumn(page: Page, status: string, position: "start" | "middle" | "end") {

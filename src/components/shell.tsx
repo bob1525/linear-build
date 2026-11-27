@@ -82,7 +82,13 @@ export function AppShell({
       }
     }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Set only after the listener is attached. Tests wait for this so a key
+    // press cannot land in the gap between the board URL and hydration.
+    document.documentElement.setAttribute("data-shortcuts", "ready");
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.documentElement.removeAttribute("data-shortcuts");
+    };
   }, [value]);
 
   async function logout() {
