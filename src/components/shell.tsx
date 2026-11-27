@@ -95,8 +95,9 @@ export function AppShell({
     setLoggingOut(true);
     const result = await logoutAction();
     if (result.ok) {
+      // The action already cleared the session cookie. A refresh beside this
+      // push can cancel the navigation, and the shell stays on the board.
       router.push(result.data.redirectTo);
-      router.refresh();
     }
     setLoggingOut(false);
   }

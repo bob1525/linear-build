@@ -2,6 +2,37 @@ import { expect, test } from "@playwright/test";
 import { DEMO_PASSWORD, PRIMARY_DEMO } from "../src/lib/demo-accounts";
 import { login } from "./helpers";
 
+test("sign-in and logout show the signed-in board and the sign-in page on the first attempt", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page.getByRole("heading", { name: "Sign in to Northstar" })).toBeVisible();
+  await page.getByLabel("Email").fill(PRIMARY_DEMO.email);
+  await page.getByLabel("Password").fill(DEMO_PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+
+  await expect(page).toHaveURL(/\/p\/ORB/);
+  await expect(page.getByRole("heading", { name: "Orbit" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to Northstar" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
+  await expect(page.getByText(PRIMARY_DEMO.email).first()).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-shortcuts", "ready");
+
+  await page.goto("/login");
+  await expect(page).toHaveURL(/\/p\/ORB/);
+  await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to Northstar" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Log out" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("heading", { name: "Sign in to Northstar" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Log out" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Orbit" })).toHaveCount(0);
+
+  await page.goto("/p/ORB");
+  await expect(page).toHaveURL(/\/login/);
+  await expect(page.getByRole("heading", { name: "Sign in to Northstar" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Orbit" })).toHaveCount(0);
+});
+
 test("logs in with demo credentials and logs out", async ({ page }) => {
   await login(page);
   await expect(page.getByRole("heading", { name: "Orbit" })).toBeVisible();
@@ -30,6 +61,8 @@ test("signs up, creates a project, and shows the empty board", async ({ page }) 
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/welcome/);
   await expect(page.getByRole("heading", { name: "Your workspace is empty" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Create your workspace" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Change password" })).toBeVisible();
   await page.getByLabel("Project name").fill("Launchpad");
   await expect(page.getByLabel("Key")).toHaveValue("LAU");
   await page.getByLabel("Key").fill("LNP");

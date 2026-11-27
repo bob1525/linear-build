@@ -42,8 +42,9 @@ export function AuthForm({
       setError(result.error);
       return;
     }
+    // The action already set the session cookie. A refresh beside this push
+    // can cancel the navigation, and the form stays on sign-in or sign-up.
     router.push(result.data.redirectTo);
-    router.refresh();
   }
 
   function useDemo() {
