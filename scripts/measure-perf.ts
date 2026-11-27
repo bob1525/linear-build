@@ -1,0 +1,348 @@
+import os from "node:os";
+import { chromium, type Page } from "playwright";
+import { DEMO_PASSWORD } from "../src/lib/demo-accounts";
+
+const baseURL = process.env.PERF_BASE_URL ?? "http://127.0.0.1:3200";
+const boardLoadBudgetMs = Number(process.env.PERF_BOARD_LOAD_BUDGET_MS ?? "1200");
+
+function median(values: number[]) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length === 0) return 0;
+  return sorted.length % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2 : sorted[mid]!;
+}
+
+function percentile(values: number[], p: number) {
+  const sorted = [...values].filter((value) => value > 0).sort((a, b) => a - b);
+  if (sorted.length === 0) return 0;
+  const index = Math.min(sorted.length - 1, Math.ceil(p * sorted.length) - 1);
+  return sorted[index] ?? 0;
+}
+
+async function login(page: Page) {
+  await page.goto(`${baseURL}/login`);
+  await page.getByLabel("Email").fill("perf@northstar.dev");
+  await page.getByLabel("Password").fill(DEMO_PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForURL(/\/p\/PERF/);
+}
+
+async function boardReady(page: Page) {
+  await page.getByRole("heading", { name: "Todo" }).waitFor();
+  await page.locator("[data-testid='column-scroll-todo'] article a").first().waitFor();
+  const issues = await columnTotal(page);
+  if (issues !== 500) throw new Error(`Expected 500 issues on the board, found ${issues}`);
+}
+
+async function revealCard(page: Page, title: string) {
+  const link = page.getByRole("link", { name: title, exact: true });
+  if ((await link.count()) > 0) return;
+  const scrollers = page.locator("[data-column-scroll]");
+  const columns = await scrollers.count();
+  for (let column = 0; column < columns; column += 1) {
+    const scroller = scrollers.nth(column);
+    const max = await scroller.evaluate((node) => Math.max(0, (node as HTMLElement).scrollHeight - (node as HTMLElement).clientHeight));
+    const step = await scroller.evaluate((node) => Math.max(80, Math.floor((node as HTMLElement).clientHeight * 0.55)));
+    for (let top = 0; top <= max; top += step) {
+      await scroller.evaluate((node, value) => {
+        (node as HTMLElement).scrollTop = value;
+      }, top);
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+      if ((await link.count()) > 0) return;
+    }
+  }
+  await link.waitFor();
+}
+
+async function measureScroll(page: Page) {
+  const scroller = page.getByTestId("column-scroll-backlog");
+  const mountedAtTop = await scroller.locator("article").count();
+  const size = Number(await page.getByTestId("column-backlog").locator("header span").innerText());
+  await page.evaluate(
+    new Function(
+      `const gaps = [];
+       let last = performance.now();
+       const loop = (now) => {
+         gaps.push(now - last);
+         last = now;
+         window.__scrollRaf = requestAnimationFrame(loop);
+       };
+       window.__scrollGaps = gaps;
+       window.__scrollRaf = requestAnimationFrame(loop);`,
+    ) as () => void,
+  );
+  const started = Date.now();
+  await scroller.evaluate(
+    new Function(
+      "node",
+      `const end = Math.max(0, node.scrollHeight - node.clientHeight);
+       const t0 = performance.now();
+       return new Promise((resolve) => {
+         const step = (now) => {
+           const t = Math.min(1, (now - t0) / 400);
+           node.scrollTop = end * t;
+           if (t < 1) requestAnimationFrame(step);
+           else resolve();
+         };
+         requestAnimationFrame(step);
+       });`,
+    ) as (node: HTMLElement) => Promise<void>,
+  );
+  const scrollMs = Date.now() - started;
+  await page.waitForFunction(
+    new Function(
+      "expected",
+      `const el = document.querySelector("[data-testid='column-scroll-backlog']");
+       return el instanceof HTMLElement && Number(el.getAttribute("data-window-end")) === expected;`,
+    ) as (expected: number) => boolean,
+    size,
+  );
+  const mountedAtEnd = await scroller.locator("article").count();
+  const gaps = await page.evaluate(
+    new Function(
+      `if (window.__scrollRaf) cancelAnimationFrame(window.__scrollRaf);
+       return window.__scrollGaps || [];`,
+    ) as () => number[],
+  );
+  return {
+    size,
+    scrollMs,
+    mountedAtTop,
+    mountedAtEnd,
+    frameP50Ms: Math.round(percentile(gaps, 0.5) * 10) / 10,
+    frameMaxMs: Math.round(Math.max(...gaps, 0) * 10) / 10,
+  };
+}
+
+async function loadList(page: Page) {
+  const started = Date.now();
+  await page.goto(`${baseURL}/p/PERF/list?all=1`, { waitUntil: "domcontentloaded" });
+  await page.locator("[data-testid^='row-']").first().waitFor();
+  const elapsed = Date.now() - started;
+  const scroller = page.getByTestId("list-scroll");
+  const size = Number(await scroller.getAttribute("data-list-size"));
+  const mounted = await page.locator("[data-testid^='row-']").count();
+  const html = await page.evaluate(new Function("return document.documentElement.outerHTML.length") as () => number);
+  if (size !== 500) throw new Error(`Expected 500 issues on the list, found ${size}`);
+  if (mounted >= size) throw new Error(`List mounted every row (${mounted} of ${size})`);
+  return { elapsed, size, mounted, html };
+}
+
+async function measureListScroll(page: Page) {
+  const scroller = page.getByTestId("list-scroll");
+  const mountedAtTop = await page.locator("[data-testid^='row-']").count();
+  const started = Date.now();
+  await scroller.evaluate(new Function("node", "node.scrollTop = node.scrollHeight;") as (node: HTMLElement) => void);
+  await page.waitForFunction(
+    new Function(
+      `const el = document.querySelector("[data-testid='list-scroll']");
+       if (!(el instanceof HTMLElement)) return false;
+       return Number(el.getAttribute("data-window-end")) === Number(el.getAttribute("data-list-size"));`,
+    ) as () => boolean,
+  );
+  const scrollMs = Date.now() - started;
+  const mountedAtEnd = await page.locator("[data-testid^='row-']").count();
+  return { mountedAtTop, mountedAtEnd, scrollMs };
+}
+
+async function columnTotal(page: Page) {
+  return page.evaluate(() => {
+    return [...document.querySelectorAll("[data-testid^='column-'] header span:last-child")]
+      .map((node) => Number(node.textContent ?? "0"))
+      .reduce((sum, value) => sum + value, 0);
+  });
+}
+
+async function loadBoard(page: Page) {
+  const started = Date.now();
+  await page.goto(`${baseURL}/p/PERF?all=1`, { waitUntil: "domcontentloaded" });
+  await boardReady(page);
+  const elapsed = Date.now() - started;
+  const navigation = await page.evaluate(() => {
+    const entry = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    return {
+      ttfbMs: entry ? Math.round(entry.responseStart) : null,
+      domContentLoadedMs: entry ? Math.round(entry.domContentLoadedEventEnd) : null,
+      loadMs: entry ? Math.round(entry.loadEventEnd) : null,
+      transferBytes: entry?.transferSize ?? null,
+    };
+  });
+  const issues = await columnTotal(page);
+  const mountedArticles = await page.locator("[data-testid^='column-scroll-'] article").count();
+  return { elapsed, issues, mountedArticles, ...navigation };
+}
+
+async function filterBySearch(page: Page) {
+  await page.goto(`${baseURL}/p/PERF?all=1`);
+  await boardReady(page);
+  const field = page.getByTestId("search");
+  const started = Date.now();
+  await field.fill("Perf 250");
+  await page.waitForURL(/q=Perf(\+|%20)250/);
+  await page.getByRole("link", { name: "Perf 250", exact: true }).waitFor();
+  const elapsed = Date.now() - started;
+  const shown = await columnTotal(page);
+  await field.fill("");
+  await page.waitForURL((url) => !url.search.includes("q="));
+  await boardReady(page);
+  return { elapsed, shown };
+}
+
+async function filterByPriority(page: Page) {
+  await page.goto(`${baseURL}/p/PERF?all=1`);
+  await boardReady(page);
+  await page.getByTestId("filter-priority").click();
+  const started = Date.now();
+  await page.getByRole("option", { name: "High", exact: true }).click();
+  await page.waitForURL(/priority=high/);
+  await page.getByRole("link", { name: "Perf 004" }).waitFor();
+  const elapsed = Date.now() - started;
+  const shown = await columnTotal(page);
+  return { elapsed, shown };
+}
+
+async function dragOnce(page: Page, title: string) {
+  await page.goto(`${baseURL}/p/PERF?all=1`);
+  await boardReady(page);
+  await revealCard(page, title);
+  const card = page.locator("article").filter({ has: page.getByRole("link", { name: title, exact: true }) });
+  await card.evaluate(
+    new Function(
+      "node",
+      `const scroller = node.closest("[data-column-scroll]");
+       if (!(scroller instanceof HTMLElement)) return;
+       const itemRect = node.getBoundingClientRect();
+       const scrollerRect = scroller.getBoundingClientRect();
+       scroller.scrollTop += itemRect.top - scrollerRect.top - (scroller.clientHeight - itemRect.height) / 2;`,
+    ) as (node: HTMLElement) => void,
+  );
+  await page.evaluate(
+    new Function(
+      `const gaps = [];
+       let last = performance.now();
+       const loop = (now) => {
+         gaps.push(now - last);
+         last = now;
+         window.__perfRaf = requestAnimationFrame(loop);
+       };
+       window.__perfGaps = gaps;
+       window.__perfRaf = requestAnimationFrame(loop);`,
+    ) as () => void,
+  );
+
+  const handle = card.getByRole("button", { name: /^Drag / });
+  const handleBox = await handle.boundingBox();
+  const column = page.getByTestId("column-done");
+  const columnBox = await column.boundingBox();
+  if (!handleBox || !columnBox) throw new Error("Could not measure the perf drag");
+  const startX = handleBox.x + handleBox.width / 2;
+  const startY = handleBox.y + handleBox.height / 2;
+  const endX = columnBox.x + columnBox.width / 2;
+  const endY = columnBox.y + 120;
+  const gestureStarted = Date.now();
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(endX, endY, { steps: 24 });
+  await page.mouse.up();
+  const gestureMs = Date.now() - gestureStarted;
+  const settleStarted = Date.now();
+  await column.getByRole("link", { name: title, exact: true }).waitFor();
+  const settleMs = Date.now() - settleStarted;
+
+  const gaps = await page.evaluate(
+    new Function(
+      `if (window.__perfRaf) cancelAnimationFrame(window.__perfRaf);
+       return window.__perfGaps || [];`,
+    ) as () => number[],
+  );
+  return {
+    gestureMs,
+    settleMs,
+    frames: gaps.length,
+    frameP50Ms: Math.round(percentile(gaps, 0.5) * 10) / 10,
+    frameP95Ms: Math.round(percentile(gaps, 0.95) * 10) / 10,
+    frameMaxMs: Math.round(Math.max(...gaps, 0) * 10) / 10,
+  };
+}
+
+function environment() {
+  const cpus = os.cpus();
+  return {
+    platform: `${os.platform()} ${os.release()} ${os.arch()}`,
+    node: process.version,
+    cpuModel: cpus[0]?.model ?? "unknown",
+    cpuCount: cpus.length,
+    memoryMb: Math.round(os.totalmem() / (1024 * 1024)),
+    runnerOs: process.env.RUNNER_OS ?? null,
+    runnerArch: process.env.RUNNER_ARCH ?? null,
+    runnerName: process.env.RUNNER_NAME ?? null,
+  };
+}
+
+async function main() {
+  if (!Number.isFinite(boardLoadBudgetMs) || boardLoadBudgetMs <= 0) {
+    throw new Error("PERF_BOARD_LOAD_BUDGET_MS must be a positive number");
+  }
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  await login(page);
+  const loads = [await loadBoard(page), await loadBoard(page), await loadBoard(page)];
+  const scroll = await measureScroll(page);
+  const searches = [await filterBySearch(page), await filterBySearch(page), await filterBySearch(page)];
+  const priorities = [await filterByPriority(page), await filterByPriority(page), await filterByPriority(page)];
+  const drags = [await dragOnce(page, "Perf 002"), await dragOnce(page, "Perf 006")];
+  const listLoads = [await loadList(page), await loadList(page), await loadList(page)];
+  const listScroll = await measureListScroll(page);
+  const listLoadMedianMs = median(listLoads.map((item) => item.elapsed));
+  const boardLoadMedianMs = median(loads.map((item) => item.elapsed));
+  const withinBudget = boardLoadMedianMs < boardLoadBudgetMs;
+  const report = {
+    baseURL,
+    viewport: "1440x900",
+    environment: environment(),
+    issues: loads[0]?.issues ?? 0,
+    mountedArticles: loads.map((item) => item.mountedArticles),
+    scroll,
+    boardLoadMs: loads.map((item) => item.elapsed),
+    boardLoadMedianMs,
+    boardLoadBudgetMs,
+    boardLoadWithinBudget: withinBudget,
+    navigation: loads,
+    searchFilterMs: searches.map((item) => item.elapsed),
+    searchFilterMedianMs: median(searches.map((item) => item.elapsed)),
+    searchShown: searches.map((item) => item.shown),
+    priorityFilterMs: priorities.map((item) => item.elapsed),
+    priorityFilterMedianMs: median(priorities.map((item) => item.elapsed)),
+    priorityShown: priorities.map((item) => item.shown),
+    drags,
+    listLoadMs: listLoads.map((item) => item.elapsed),
+    listLoadMedianMs,
+    listMounted: listLoads.map((item) => item.mounted),
+    listHtmlBytes: listLoads.map((item) => item.html),
+    listScroll,
+  };
+  console.log(JSON.stringify(report, null, 2));
+  const status = withinBudget ? "ok" : "warn";
+  const dragFrameP50Ms = drags.map((item) => item.frameP50Ms).join(",");
+  const dragFrameMaxMs = drags.map((item) => item.frameMaxMs).join(",");
+  console.warn(
+    `PERF boardLoadMedianMs=${boardLoadMedianMs} budgetMs=${boardLoadBudgetMs} status=${status} dragFrameP50Ms=${dragFrameP50Ms} dragFrameMaxMs=${dragFrameMaxMs}`,
+  );
+  console.warn(
+    `PERF scrollMountedAtTop=${scroll.mountedAtTop} scrollMountedAtEnd=${scroll.mountedAtEnd} scrollMs=${scroll.scrollMs} scrollFrameP50Ms=${scroll.frameP50Ms} scrollFrameMaxMs=${scroll.frameMaxMs}`,
+  );
+  console.warn(
+    `PERF listLoadMedianMs=${listLoadMedianMs} listMountedAtTop=${listScroll.mountedAtTop} listMountedAtEnd=${listScroll.mountedAtEnd} listScrollMs=${listScroll.scrollMs} listSize=${listLoads[0]?.size ?? 0} listHtmlBytes=${listLoads[0]?.html ?? 0}`,
+  );
+  if (!withinBudget) {
+    console.warn(
+      `::warning title=Board load::Board load median ${boardLoadMedianMs} ms is not under ${boardLoadBudgetMs} ms.`,
+    );
+  }
+  await browser.close();
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

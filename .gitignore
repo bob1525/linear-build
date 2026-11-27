@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+dist
+coverage
+.env
+.env.local
+*.db
+*.db-journal
+playwright-report
+perf-server.log
+test-results
+.mail/
+blob-report
+.DS_Store
+tsconfig.tsbuildinfo

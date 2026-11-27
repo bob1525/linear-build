@@ -1,1 +1,238 @@
-# linear-build
+# Northstar
+
+Northstar is a lightweight issue tracker for product teams. It covers the everyday loop: sign in, switch projects, filter a board or list, update status, and leave a Markdown comment with an activity trail.
+
+![Sign in](docs/screenshots/login.png)
+
+This is the production sign-in page. Fill demo and the demo password are not on it.
+
+## Features
+
+- Email and password accounts. Passwords are hashed with bcrypt. Sessions live in an httpOnly cookie. A signed-in person can change their password; other sessions for that account are signed out.
+- Multiple projects, with the last opened project remembered across visits.
+- Issues with a title, Markdown description, status, priority, assignee, due date, and labels.
+- Status workflow: Backlog, Todo, In Progress, and Done.
+- Kanban board with drag-and-drop between columns, plus a list view with inline status changes. A focused card moves to the neighboring column with Alt and the left or right arrow, and stays in the current sort. A column of 10 or more cards mounts the visible slice, the card being dragged, and cards just moved. Shorter columns stay fully mounted.
+- Issue page with rendered Markdown (including tables), comments, and an activity log of who changed what and when.
+- Relations on an issue: blocks, blocked by, and related to, plus one level of sub-issues. Blocking issues are marked on the board and the list. A blocking cycle is rejected.
+- Saved views store the current filters, sort, and Board or List choice. Each person has their own views, can rename or delete them, and can mark one as the default for a project.
+- Batch edits on the board and the list: Shift or Ctrl/Cmd click, select all, then change status, assignee, or labels, or delete after a confirmation. A partial failure lists the issues that succeeded and the ones that did not. A batch that overlaps a newer save reports that issue as a conflict instead of overwriting it.
+- Concurrent edits: the issue page, the list, and a board drag send the version that was loaded. If someone else saved first, the later save stops and a prompt offers to reload their version or overwrite it.
+- Filters that combine: status, priority, assignee (including unassigned), label, and keyword search across the key, title, and description. Filters stay in the URL.
+- Keyboard shortcuts: `C` opens a new issue, `/` focuses search, `Esc` closes menus and dialogs, `⌘/Ctrl+Enter` submits the issue and comment composers, and Alt plus the left or right arrow moves a focused board card to the neighboring column.
+- Empty, loading, and error states for a new workspace, an empty project, a filter with no matches, and a failed page.
+
+## Screenshots
+
+Board, with every status column visible:
+
+![Orbit board](docs/screenshots/board.png)
+
+Filters combine. This view is Todo, High priority, and the keyword `cache`:
+
+![Filtered board](docs/screenshots/filters.png)
+
+List view, sorted by priority:
+
+![Issue list](docs/screenshots/list.png)
+
+Issue detail, with Markdown, comments, properties, and activity:
+
+![Issue detail](docs/screenshots/issue-detail.png)
+
+The Todo column on Orbit. ORB-3 shows Blocks and ORB-2 shows Blocked:
+
+![Board with relation markers](docs/screenshots/board-with-relations.png)
+
+The issue page lists blocked by, blocks, related, the parent, and sub-issues. ORB-1 has ORB-5 as a sub-issue:
+
+![Issue relations and sub-issues](docs/screenshots/issue-detail-relations.png)
+
+Saved views can be named from the current filters and switched later. This one stores Todo, High, and the keyword `cache`:
+
+![Saved views menu](docs/screenshots/saved-views-menu.png)
+
+Selecting more than one issue opens the batch bar for status, assignee, labels, or delete:
+
+![Batch operations](docs/screenshots/batch-operations.png)
+
+If someone else saved the issue first, the later save stops and offers Reload or Overwrite:
+
+![Conflict dialog](docs/screenshots/conflict-dialog.png)
+
+Relay is the drag lab: a long Backlog, one Todo card, an empty In Progress column, and a long Done column:
+
+![Relay drag lab](docs/screenshots/relay-drag-lab.png)
+
+At a phone width the sidebar is closed until you open it, and the board scrolls sideways with a card still on screen:
+
+![Mobile board](docs/screenshots/board-mobile.png)
+
+A signed-in person replaces their password at `/account`. Other sessions for that account are signed out. That page does not email a reset link. A signed-out person uses `/forgot-password` when mail is configured:
+
+![Change password](docs/screenshots/change-password.png)
+
+## Tech stack
+
+- Next.js 15 App Router, React 19, TypeScript
+- Tailwind CSS
+- Prisma 6 with SQLite
+- Zod for input validation
+- `@dnd-kit` for board drag-and-drop
+- `react-markdown` and `remark-gfm` for descriptions and comments
+- Vitest for unit tests, Playwright for end-to-end tests
+
+## Demo credentials
+
+The seed data creates four people, all with the password `demo1234`.
+
+| Name | Email |
+| --- | --- |
+| Ava Chen | ava@northstar.dev |
+| Marcus Hale | marcus@northstar.dev |
+| Priya Nair | priya@northstar.dev |
+| Leo Park | leo@northstar.dev |
+
+Sign in as Ava to land on **Orbit** (`ORB`). The other seeded projects are **Pulse** (`PLS`), **Atlas** (`ATL`), and **Relay** (`RLY`, a drag lab with a long column, a short column, and an empty column). Together they contain 67 issues, with labels, assignees, due dates, comments, and activity.
+
+`npm run dev` shows a **Fill demo** button on the sign-in page. It enters Ava’s email and password. A production server hides that block, and it does not send the demo password to the browser. Set `NORTHSTAR_SHOW_DEMO=1` only when you intentionally want the block on a production build. The end-to-end server sets it so the existing demo-hint test still runs. Leave it unset on a public host.
+
+## Run locally
+
+Requires Node.js 20 or newer.
+
+```bash
+npm install
+cp .env.example .env
+npm run db:setup
+npm run dev
+```
+
+Open http://localhost:3000. `db:setup` applies `prisma/migrations` and loads the demo workspace into `prisma/dev.db`. On a file created earlier with `db push`, it records that history and applies any missing migration, including `RateLimitEvent`, then reseeds. `npm install` also generates the Prisma client.
+
+Useful database commands:
+
+```bash
+npm run db:generate   # regenerate the Prisma client
+npm run db:migrate    # apply versioned migrations without reseeding
+npm run db:seed       # replace the current database with demo data
+```
+
+`DATABASE_URL` defaults to `file:./dev.db`, which Prisma resolves relative to the `prisma/` directory.
+
+To refresh the screenshots in `docs/screenshots/` against a running app:
+
+```bash
+npm run screenshots
+```
+
+That script expects a production server at http://127.0.0.1:3000 (`next start`, with `NORTHSTAR_SHOW_DEMO` unset). It refuses to write `login.png` when Fill demo or the demo password is on the page. `npm run screenshots -- --refresh` rewrites only `login.png` and `change-password.png`.
+
+## Tests
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run test:e2e
+```
+
+`npm test` runs the Vitest unit suite (filters, activity copy, validation, ordering, password hashing, kanban column hit-testing, relations, saved views, batch planning, and concurrent-edit checks).
+
+`npm run test:e2e` resets a separate SQLite file (`prisma/e2e.db`), builds the production app, and runs Playwright against http://127.0.0.1:3100. Stop `npm run dev` first. The dev server and the production build share the `.next` directory.
+
+The end-to-end suite covers sign-in and sign-up, combined filters, project switching, list and detail status changes, Markdown comments, creating an issue, dragging a card between columns, relations, saved views, batch edits, the concurrent-edit prompt, empty and unauthorized projects, and the `C` / `/` shortcuts.
+
+`npm run perf` repeats the 500-issue timings in `PERFORMANCE.md`: it rebuilds `prisma/perf.db`, makes a production build, and prints board, filter, and drag numbers. It does not replace the demo seed. `npm run db:perf` only rebuilds that database. A pull request also runs this check and warns if the board-load median is not under 1200 ms. The log includes the drag frame gap, and that figure does not raise a warning.
+
+## Production deployment
+
+Northstar is a Next.js server plus one SQLite file. Run it as a single long-lived Node process. Do not put several writers on that file, and do not expect the file to survive on a serverless host.
+
+### Required environment
+
+| Variable | Required | What it does |
+| --- | --- | --- |
+| `DATABASE_URL` | Yes | Prisma connection string. SQLite is the default. A `file:` path is resolved relative to the `prisma/` directory. For a real deploy, point it at an absolute path on a persistent disk, for example `file:/var/lib/northstar/prod.db`. A `postgresql://` or `postgres://` URL uses the separate schema in `prisma/postgres`. See [POSTGRES_PATH.md](POSTGRES_PATH.md). |
+| `NODE_ENV` | Set by `next start` | `production` marks the `ns_session` cookie `Secure`. |
+| `TRUST_PROXY` | No | Leave unset. Forwarded address headers are ignored, and every caller shares the `local` bucket. Set to `1` only when a reverse proxy replaces `x-forwarded-for` or `x-real-ip` with the real client. Any other value, including `true`, is still ignored. |
+
+`DATABASE_URL` is required. `TRUST_PROXY` is optional and defaults to off. There is no `AUTH_SECRET`. A session is 32 random bytes stored in the `Session` table, sent in the httpOnly cookie `ns_session` (SameSite=Lax, 30 days). `next build` still needs `DATABASE_URL` to be set, even though pages render on demand.
+
+### SQLite limits
+
+- One process owns the file. Do not run two copies of `next start`, and do not put a load balancer in front of several replicas that write the same file. SQLite is not a multi-replica writer.
+- The file has to be on a persistent disk. Replacing a container that has no volume throws the database away.
+- Schema changes are versioned in `prisma/migrations`. `npm run db:migrate` applies them. A file created with `db push` and no `_prisma_migrations` table is baselined when its Northstar tables are already present: the init migration is marked applied, and `RateLimitEvent` is created only if that table is missing. A file that is missing earlier tables is left alone. Details are in `MIGRATIONS.md`.
+- Copy the file for a backup while the process is stopped, before migrating a database that has real rows. A copy taken during writes can be incomplete.
+
+### One Node process
+
+This is the deployment that matches the database.
+
+```bash
+npm ci
+cp .env.example .env
+# Set DATABASE_URL to an absolute file on a persistent disk.
+npm run db:migrate
+npm run build
+npm run start
+```
+
+`npm run start` is `next start`. It listens on port 3000 unless you pass `-p`. Put TLS on a reverse proxy in front of that single process. Do not scale the process out.
+
+Do not run `npm run db:seed` or `npm run db:setup` on the production file unless you mean to replace every row with the demo workspace.
+
+### Vercel and other serverless hosts
+
+Vercel can build this Next.js app. It cannot host this SQLite file. Serverless instances do not share a writable disk, `/tmp` disappears, and each instance would see its own empty or stale database. A later request can land on a different instance and miss the write. Two instances writing one SQLite file is the case this app does not support.
+
+Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A public multi-instance deploy can point `DATABASE_URL` at Postgres. `npm run db:migrate:pg` applies `prisma/postgres/migrations`, a separate history from the SQLite files in `prisma/migrations`. Several app instances can then share that database, including the `RateLimitEvent` rows. The steps and the limits are in [POSTGRES_PATH.md](POSTGRES_PATH.md). SQLite stays the default, and the one-process file deploy above is unchanged.
+
+### Change these before the site is public
+
+- The seed creates Ava Chen, Marcus Hale, Priya Nair, and Leo Park, all with the password `demo1234`. Those accounts are fixtures. On a public server, start from an empty file, or change every password and delete the accounts you do not want.
+- Do not set `NORTHSTAR_SHOW_DEMO=1`. Without it, production does not render Fill demo or the demo password.
+- Sign-in counts failed passwords: 8 per email and 40 per client address, each in a 15 minute window. A successful sign-in counts too, in its own rows: 120 per email and 400 per address in that same window. Registration counts every accepted form: 5 per email and 30 per client address. A signed-in password change counts a wrong current password the same way as a failed sign-in, 8 per email and 40 per address, in its own rows so it does not lock sign-in. A correct password change does not consume a slot. Each count is a row in `RateLimitEvent`. The count and the insert are one statement, so a parallel burst cannot store more rows than the limit. A restart keeps the rows, and another process that opens that file sees them. With `TRUST_PROXY` unset, the address is `local` even if the request sends `x-forwarded-for` or `x-real-ip`. With `TRUST_PROXY=1`, the address is the first forwarded hop, then `x-real-ip`, then `local`. There is still no email verification. A signed-out person can request a reset at `/forgot-password`. The link expires in 30 minutes, works once, and is stored only as a hash. Resetting signs out the account's sessions. Requests are limited to 5 per email and 30 per address in 15 minutes, including addresses with no account, and the page uses the same reply either way. With mail off, that page says reset email is unavailable. See [PASSWORD_RESET.md](PASSWORD_RESET.md). Mail is sent over SMTP when `SMTP_URL` and `MAIL_FROM` are both set. With neither set, production keeps features that send mail off and says so on `/account`. Development writes those messages to a local outbox instead. See [MAIL_TRANSPORT.md](MAIL_TRANSPORT.md). Passwords are bcrypt with 10 rounds. The signed-in form is at `/account`.
+
+## Documentation
+
+Mail and robustness round:
+
+- [MAIL_TRANSPORT.md](MAIL_TRANSPORT.md) is the SMTP transport and the development outbox. Production without SMTP does not send mail.
+- [PASSWORD_RESET.md](PASSWORD_RESET.md) is the forgot-password flow. The link is single-use, expires in 30 minutes, and is stored as a hash.
+- [NAV_REFRESH_CLEANUP.md](NAV_REFRESH_CLEANUP.md) stops sign-in, sign-up, and logout from racing a refresh.
+
+Continued upgrade round:
+
+- [CONTINUED_UPGRADE_AUDIT.md](CONTINUED_UPGRADE_AUDIT.md) summarizes the round and records the latest test run.
+- [KEYBOARD_MOVE.md](KEYBOARD_MOVE.md) moves a focused board card to the neighboring column from the keyboard.
+- [SCREENSHOTS_REFRESH.md](SCREENSHOTS_REFRESH.md) recaptures the production sign-in page and adds the change-password page.
+- [AUTH_LIMITS_TIGHTEN.md](AUTH_LIMITS_TIGHTEN.md) counts successful sign-ins and closes the parallel check-then-insert gap.
+- [POSTGRES_PATH.md](POSTGRES_PATH.md) is the optional Postgres connection. SQLite stays the default.
+
+Follow-up round:
+
+- [FOLLOWUP_UPGRADE_AUDIT.md](FOLLOWUP_UPGRADE_AUDIT.md) summarizes the round and records the latest test run.
+- [CONFLICT_RELOAD_FIX.md](CONFLICT_RELOAD_FIX.md) replaces the title on conflict reload so the field does not keep a joined draft.
+- [LIST_VIRTUALIZATION.md](LIST_VIRTUALIZATION.md) windows long lists and records the 500-issue list measurement.
+- [PASSWORD_CHANGE.md](PASSWORD_CHANGE.md) is the signed-in password change and its rate limit.
+- [A11Y.md](A11Y.md) is the keyboard and screen-reader pass for the board, the list, dialogs, and the password form.
+
+Upgrade round:
+
+- [UPGRADE_ROUND_AUDIT.md](UPGRADE_ROUND_AUDIT.md) summarizes the round and records the latest test run.
+- [KEYBOARD_FLAKE_FIX.md](KEYBOARD_FLAKE_FIX.md) waits for the shortcut listener before `login()` returns.
+- [AUTH_LIMITS.md](AUTH_LIMITS.md) stores those rate limits in SQLite and ignores forwarded addresses unless `TRUST_PROXY=1`.
+- [MIGRATIONS.md](MIGRATIONS.md) is the versioned schema history and the upgrade steps for an older SQLite file.
+- [BOARD_VIRTUALIZATION.md](BOARD_VIRTUALIZATION.md) windows long board columns and records the 500-issue measurement.
+
+Hardening round:
+
+- [NEXT_ROUND_AUDIT.md](NEXT_ROUND_AUDIT.md) summarizes the round and records the latest test run.
+- [SCREENSHOTS_FIX.md](SCREENSHOTS_FIX.md) explains why the relations shot is a Todo-column crop and why the conflict shot waits out the toast.
+- [PERF_THRESHOLD.md](PERF_THRESHOLD.md) sets the board-load warning at 1200 ms and records the drag frame gap.
+- [AUTH_HARDENING.md](AUTH_HARDENING.md) covers the hidden Fill demo block and the first rate limits.
+- [MERGE_READINESS.md](MERGE_READINESS.md) names the checks to require and the steps for merging PR #1.
+
+Earlier notes: [CI_SETUP.md](CI_SETUP.md), [SCREENSHOTS_UPDATE.md](SCREENSHOTS_UPDATE.md), [PERF_AUTOMATION.md](PERF_AUTOMATION.md), [MOBILE_VERIFICATION.md](MOBILE_VERIFICATION.md), [FINAL_ROUND_AUDIT.md](FINAL_ROUND_AUDIT.md), [PERFORMANCE.md](PERFORMANCE.md), [DRAG_ROOT_CAUSE.md](DRAG_ROOT_CAUSE.md), [RELATION_IMPLEMENTATION.md](RELATION_IMPLEMENTATION.md), [SAVED_VIEWS.md](SAVED_VIEWS.md), [BATCH_OPERATIONS.md](BATCH_OPERATIONS.md), [EDGE_CASES.md](EDGE_CASES.md), and [TEST_PASS.md](TEST_PASS.md).
