@@ -51,4 +51,14 @@ The shipped path does not use that transaction. A separate probe, deleted afterw
 
 ## Actions run
 
-Recorded after the workflow for this commit finishes.
+Push of `a8585a2`: [46020029229](https://github.com/bob1525/linear-build/actions/runs/46020029229), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 14:53:58Z to 14:54:50Z. **122 passed** (17 files).
+- `Playwright`: 2026-11-27 14:53:57Z to 14:56:51Z. **58 passed** (1.6 minutes). `blocks a run of bad passwords for one email` passed on the first attempt (1.0 seconds). `blocks repeated registration of one email` passed on the first attempt (1.9 seconds). `blocks a run of wrong current passwords for one account` passed on the first attempt (2.5 seconds). `the later saver of an issue gets a conflict prompt` passed on the first attempt (2.0 seconds). The keyboard test passed on the first attempt (2.2 seconds).
+
+Pull request of the same commit: [46020039459](https://github.com/bob1525/linear-build/actions/runs/46020039459), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 14:54:01Z to 14:54:51Z. **122 passed** (17 files).
+- `Playwright`: 2026-11-27 14:54:02Z to 14:57:09Z. **58 passed** (1.9 minutes). The bad-password lockout passed on the first attempt (1.3 seconds). The repeated-registration lockout passed on the first attempt (3.4 seconds). The wrong-current-password lockout passed on the first attempt (2.4 seconds). The conflict test passed on the first attempt (6.8 seconds). The keyboard test passed on the first attempt (2.5 seconds).
+
+Performance on the same commit, not required: [46020039460](https://github.com/bob1525/linear-build/actions/runs/46020039460), conclusion success. Board-load median 422 ms, `status=ok`. List-load median 373 ms, 19 mounted at the top and 18 at the end.
