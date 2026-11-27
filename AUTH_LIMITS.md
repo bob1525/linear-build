@@ -54,4 +54,12 @@ The cross-process test writes its script under `/tmp`. Node resolves modules fro
 
 ## Actions run
 
-Recorded after the workflow for this commit finishes.
+Push of `cb3bd03`: [45978699980](https://github.com/bob1525/linear-build/actions/runs/45978699980), conclusion success.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 10:02:28Z to 10:03:01Z. **83 passed**.
+- `Playwright`: 2026-11-27 10:02:29Z to 10:04:45Z. **46 passed** (1.3 minutes). No flaky test. The keyboard test passed on the first attempt (449 ms).
+
+Pull request of the same commit: [45978709977](https://github.com/bob1525/linear-build/actions/runs/45978709977), conclusion success.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 10:02:33Z to 10:03:05Z. **83 passed**.
+- `Playwright`: 2026-11-27 10:02:33Z to 10:05:06Z. **46 passed** (1.3 minutes). No flaky test. The keyboard test passed on the first attempt (481 ms).
