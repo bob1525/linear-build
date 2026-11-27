@@ -8,7 +8,7 @@ import { getLandingPath } from "@/lib/data";
 import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { RATE_LIMIT_MESSAGE, readClientAddress } from "@/lib/rate-limit";
-import { consumeSignup, loginIsLimited, passwordChangeIsLimited, recordLoginFailure, recordPasswordFailure } from "@/lib/rate-limit-store";
+import { consumeSignup, loginIsLimited, passwordChangeIsLimited, recordLoginFailure, recordLoginSuccess, recordPasswordFailure } from "@/lib/rate-limit-store";
 import { fail, ok, type ActionResult } from "@/lib/types";
 import { changePasswordSchema, firstIssue, loginSchema, signupSchema } from "@/lib/validators";
 
@@ -30,10 +30,11 @@ export async function loginAction(input: {
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
-    await recordLoginFailure(prisma, email, address);
+    if (!(await recordLoginFailure(prisma, email, address))) return fail(RATE_LIMIT_MESSAGE);
     return fail("Invalid email or password");
   }
 
+  if (!(await recordLoginSuccess(prisma, email, address))) return fail(RATE_LIMIT_MESSAGE);
   await createSession(user.id);
   return ok({ redirectTo: await getLandingPath(user.id) });
 }
@@ -86,7 +87,7 @@ export async function changePasswordAction(input: {
 
   const row = await prisma.user.findUnique({ where: { id: user.id }, select: { passwordHash: true } });
   if (!row || !(await verifyPassword(parsed.data.currentPassword, row.passwordHash))) {
-    await recordPasswordFailure(prisma, user.email, address);
+    if (!(await recordPasswordFailure(prisma, user.email, address))) return fail(RATE_LIMIT_MESSAGE);
     return fail("Current password is incorrect");
   }
 

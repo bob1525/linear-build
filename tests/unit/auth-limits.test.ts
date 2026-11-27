@@ -4,16 +4,21 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { AUTH_WINDOW_MS, LOGIN_FAILURE_IP_LIMIT, LOGIN_FAILURE_LIMIT, RATE_LIMIT_MESSAGE, SIGNUP_EMAIL_LIMIT, SIGNUP_IP_LIMIT } from "@/lib/rate-limit";
+import { AUTH_WINDOW_MS, LOGIN_FAILURE_IP_LIMIT, LOGIN_FAILURE_LIMIT, LOGIN_SUCCESS_EMAIL_LIMIT, LOGIN_SUCCESS_IP_LIMIT, RATE_LIMIT_MESSAGE, SIGNUP_EMAIL_LIMIT, SIGNUP_IP_LIMIT } from "@/lib/rate-limit";
 import {
   LOGIN_EMAIL_BUCKET,
+  LOGIN_SUCCESS_ADDRESS_BUCKET,
+  LOGIN_SUCCESS_EMAIL_BUCKET,
+  PASSWORD_ADDRESS_BUCKET,
   PASSWORD_EMAIL_BUCKET,
+  SIGNUP_EMAIL_BUCKET,
   checkRateLimit,
   consumeSignup,
   hitRateLimit,
   loginIsLimited,
   passwordChangeIsLimited,
   recordLoginFailure,
+  recordLoginSuccess,
   recordPasswordFailure,
 } from "@/lib/rate-limit-store";
 
@@ -146,5 +151,83 @@ prisma.rateLimitEvent
     }
     expect(await passwordChangeIsLimited(db, "fresh@example.com", "shared", 41_000)).toBe(true);
     expect(await passwordChangeIsLimited(db, "fresh@example.com", "other", 41_000)).toBe(false);
+    expect(await recordPasswordFailure(db, "one-more@example.com", "shared", 42_000)).toBe(false);
+    expect(await db.rateLimitEvent.count({ where: { bucket: PASSWORD_ADDRESS_BUCKET, key: "shared" } })).toBe(
+      LOGIN_FAILURE_IP_LIMIT,
+    );
+  });
+
+  it("does not record a failed sign-in past the email limit", async () => {
+    for (let attempt = 0; attempt < LOGIN_FAILURE_LIMIT; attempt += 1) {
+      expect(await recordLoginFailure(db, "ninth@example.com", `ip-${attempt}`, 100_000 + attempt)).toBe(true);
+    }
+    expect(await recordLoginFailure(db, "ninth@example.com", "another", 101_000)).toBe(false);
+    expect(await db.rateLimitEvent.count({ where: { bucket: LOGIN_EMAIL_BUCKET, key: "ninth@example.com" } })).toBe(
+      LOGIN_FAILURE_LIMIT,
+    );
+  });
+
+  it("counts successful sign-ins apart from failures and stops at the email limit", async () => {
+    for (let attempt = 0; attempt < LOGIN_SUCCESS_EMAIL_LIMIT; attempt += 1) {
+      expect(await recordLoginSuccess(db, "ada@example.com", `ip-${attempt}`, 60_000 + attempt)).toBe(true);
+    }
+    expect(await recordLoginSuccess(db, "ada@example.com", "fresh-ip", 70_000)).toBe(false);
+    expect(
+      await db.rateLimitEvent.count({ where: { bucket: LOGIN_SUCCESS_EMAIL_BUCKET, key: "ada@example.com" } }),
+    ).toBe(LOGIN_SUCCESS_EMAIL_LIMIT);
+    expect(await recordLoginSuccess(db, "bea@example.com", "fresh-ip", 70_100)).toBe(true);
+    expect(await loginIsLimited(db, "ada@example.com", "fresh-ip", 70_100)).toBe(false);
+    expect(await passwordChangeIsLimited(db, "ada@example.com", "fresh-ip", 70_100)).toBe(false);
+  });
+
+  it("stops successful sign-ins from one address without blocking another address", async () => {
+    for (let attempt = 0; attempt < LOGIN_SUCCESS_IP_LIMIT; attempt += 1) {
+      expect(await recordLoginSuccess(db, `person.${attempt}@example.com`, "shared", 80_000 + attempt)).toBe(true);
+    }
+    expect(await recordLoginSuccess(db, "overflow@example.com", "shared", 90_000)).toBe(false);
+    expect(
+      await db.rateLimitEvent.count({ where: { bucket: LOGIN_SUCCESS_EMAIL_BUCKET, key: "overflow@example.com" } }),
+    ).toBe(0);
+    expect(
+      await db.rateLimitEvent.count({ where: { bucket: LOGIN_SUCCESS_ADDRESS_BUCKET, key: "shared" } }),
+    ).toBe(LOGIN_SUCCESS_IP_LIMIT);
+    expect(await recordLoginSuccess(db, "overflow@example.com", "other", 90_100)).toBe(true);
+  });
+
+  it("does not let two clients insert past the signup or failure limits", async () => {
+    const other = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
+    try {
+      const signups = await Promise.all(
+        Array.from({ length: SIGNUP_EMAIL_LIMIT + 6 }, (_, attempt) =>
+          consumeSignup(attempt % 2 === 0 ? db : other, "burst@example.com", `signup-ip-${attempt}`, 110_000),
+        ),
+      );
+      expect(signups.filter((result) => result === null)).toHaveLength(SIGNUP_EMAIL_LIMIT);
+      expect(await db.rateLimitEvent.count({ where: { bucket: SIGNUP_EMAIL_BUCKET, key: "burst@example.com" } })).toBe(
+        SIGNUP_EMAIL_LIMIT,
+      );
+
+      const failures = await Promise.all(
+        Array.from({ length: LOGIN_FAILURE_LIMIT + 6 }, (_, attempt) =>
+          recordLoginFailure(attempt % 2 === 0 ? db : other, "burst-fail@example.com", `fail-ip-${attempt}`, 120_000),
+        ),
+      );
+      expect(failures.filter(Boolean)).toHaveLength(LOGIN_FAILURE_LIMIT);
+      expect(
+        await db.rateLimitEvent.count({ where: { bucket: LOGIN_EMAIL_BUCKET, key: "burst-fail@example.com" } }),
+      ).toBe(LOGIN_FAILURE_LIMIT);
+
+      const successes = await Promise.all(
+        Array.from({ length: LOGIN_SUCCESS_EMAIL_LIMIT + 6 }, (_, attempt) =>
+          recordLoginSuccess(attempt % 2 === 0 ? db : other, "burst-ok@example.com", `ok-ip-${attempt}`, 130_000),
+        ),
+      );
+      expect(successes.filter(Boolean)).toHaveLength(LOGIN_SUCCESS_EMAIL_LIMIT);
+      expect(
+        await db.rateLimitEvent.count({ where: { bucket: LOGIN_SUCCESS_EMAIL_BUCKET, key: "burst-ok@example.com" } }),
+      ).toBe(LOGIN_SUCCESS_EMAIL_LIMIT);
+    } finally {
+      await other.$disconnect();
+    }
   });
 });

@@ -1,5 +1,7 @@
 # Auth rate limits
 
+Successful sign-ins and the parallel check-then-insert gap are tightened in [AUTH_LIMITS_TIGHTEN.md](AUTH_LIMITS_TIGHTEN.md). This file is the record of the earlier counters.
+
 The sign-in and registration counters used to live in a `Map` in one Node process. A restart cleared them, and a second process did not see them. The client address was taken from `x-forwarded-for` or `x-real-ip` on every request, so a caller could pick their own bucket.
 
 ## What was done

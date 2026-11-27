@@ -193,7 +193,7 @@ Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A pu
 
 - The seed creates Ava Chen, Marcus Hale, Priya Nair, and Leo Park, all with the password `demo1234`. Those accounts are fixtures. On a public server, start from an empty file, or change every password and delete the accounts you do not want.
 - Do not set `NORTHSTAR_SHOW_DEMO=1`. Without it, production does not render Fill demo or the demo password.
-- Sign-in counts failed passwords: 8 per email and 40 per client address, each in a 15 minute window. Registration counts every accepted form: 5 per email and 30 per client address, in the same window. A signed-in password change counts a wrong current password the same way as a failed sign-in, 8 per email and 40 per address, in its own rows so it does not lock sign-in. Each count is a row in `RateLimitEvent` in the same SQLite file, so a restart keeps it and another process that opens that file sees it. With `TRUST_PROXY` unset, the address is `local` even if the request sends `x-forwarded-for` or `x-real-ip`. With `TRUST_PROXY=1`, the address is the first forwarded hop, then `x-real-ip`, then `local`. There is still no email verification and no forgot-password flow. Those need a mail provider. Passwords are bcrypt with 10 rounds. The signed-in form is at `/account`.
+- Sign-in counts failed passwords: 8 per email and 40 per client address, each in a 15 minute window. A successful sign-in counts too, in its own rows: 120 per email and 400 per address in that same window. Registration counts every accepted form: 5 per email and 30 per client address. A signed-in password change counts a wrong current password the same way as a failed sign-in, 8 per email and 40 per address, in its own rows so it does not lock sign-in. A correct password change does not consume a slot. Each count is a row in `RateLimitEvent`. The count and the insert are one SQLite statement, so a parallel burst cannot store more rows than the limit. A restart keeps the rows, and another process that opens that file sees them. With `TRUST_PROXY` unset, the address is `local` even if the request sends `x-forwarded-for` or `x-real-ip`. With `TRUST_PROXY=1`, the address is the first forwarded hop, then `x-real-ip`, then `local`. There is still no email verification and no forgot-password flow. Those need a mail provider. Passwords are bcrypt with 10 rounds. The signed-in form is at `/account`.
 
 ## Documentation
 
@@ -201,6 +201,7 @@ Continued upgrade round:
 
 - [KEYBOARD_MOVE.md](KEYBOARD_MOVE.md) moves a focused board card to the neighboring column from the keyboard.
 - [SCREENSHOTS_REFRESH.md](SCREENSHOTS_REFRESH.md) recaptures the production sign-in page and adds the change-password page.
+- [AUTH_LIMITS_TIGHTEN.md](AUTH_LIMITS_TIGHTEN.md) counts successful sign-ins and closes the parallel check-then-insert gap.
 
 Follow-up round:
 

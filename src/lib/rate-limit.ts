@@ -2,6 +2,11 @@ export const RATE_LIMIT_MESSAGE = "Too many attempts. Try again in a few minutes
 
 export const LOGIN_FAILURE_LIMIT = 8;
 export const LOGIN_FAILURE_IP_LIMIT = 40;
+// One `npm run test:e2e` recorded 50 successful sign-ins for ava@northstar.dev
+// and 54 on the shared address "local". These stay above that run, including
+// a Playwright retry, and above a small office on one address.
+export const LOGIN_SUCCESS_EMAIL_LIMIT = 120;
+export const LOGIN_SUCCESS_IP_LIMIT = 400;
 export const SIGNUP_EMAIL_LIMIT = 5;
 export const SIGNUP_IP_LIMIT = 30;
 export const AUTH_WINDOW_MS = 15 * 60 * 1000;
