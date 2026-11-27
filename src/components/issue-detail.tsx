@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createCommentAction, updateIssueAction } from "@/lib/actions/issues";
@@ -10,6 +10,7 @@ import { PRIORITIES, STATUSES, priorityLabel, statusLabel, type Priority, type S
 import { isOverdue, toDateInputValue } from "@/lib/format";
 import type { ActionResult, ActivityDTO, CommentDTO, IssueCandidate, IssueDTO, IssueRelationGroups, LabelDTO, ProjectSummary, UserDTO } from "@/lib/types";
 import { IssueRelations } from "@/components/issue-relations";
+import { titleAfterReload, type TitleReloadRequest } from "@/lib/title-reload";
 import { cn } from "@/lib/cn";
 import { Avatar, LabelPill } from "@/components/avatar";
 import { PriorityIcon, StatusIcon } from "@/components/icons";
@@ -43,11 +44,12 @@ export function IssueDetail({
   const desktop = useIsDesktop();
   const router = useRouter();
   const [baseUpdatedAt, setBaseUpdatedAt] = useState(issue.updatedAt);
-  const [conflict, setConflict] = useState<{ patch: IssuePatch; actorName: string | null } | null>(null);
+  const [conflict, setConflict] = useState<{ patch: IssuePatch; actorName: string | null; serverUpdatedAt: string } | null>(null);
   const [overwritePending, setOverwritePending] = useState(false);
   const [conflictError, setConflictError] = useState<string | null>(null);
   const [extraActivities, setExtraActivities] = useState<ActivityDTO[]>([]);
-  const [serverTitleEpoch, setServerTitleEpoch] = useState(0);
+  const [titleReload, setTitleReload] = useState<TitleReloadRequest | null>(null);
+  const titleReloadId = useRef(0);
 
   useEffect(() => {
     setBaseUpdatedAt(issue.updatedAt);
@@ -58,7 +60,7 @@ export function IssueDetail({
     if (result.ok) setBaseUpdatedAt(result.data.updatedAt);
     else if (result.conflict && !overwrite) {
       setConflictError(null);
-      setConflict({ patch, actorName: result.conflict.actorName });
+      setConflict({ patch, actorName: result.conflict.actorName, serverUpdatedAt: result.conflict.updatedAt });
     }
     return result;
   }
@@ -77,8 +79,11 @@ export function IssueDetail({
   }
 
   function reloadConflict() {
+    if (!conflict) return;
+    const serverUpdatedAt = conflict.serverUpdatedAt;
     setConflict(null);
-    setServerTitleEpoch((epoch) => epoch + 1);
+    titleReloadId.current += 1;
+    setTitleReload({ id: titleReloadId.current, serverUpdatedAt });
     router.refresh();
   }
   useEffect(() => {
@@ -124,7 +129,7 @@ export function IssueDetail({
             commit={commit}
             currentUser={currentUser}
             onActivity={rememberActivity}
-            serverTitleEpoch={serverTitleEpoch}
+            titleReload={titleReload}
           />
           {!desktop ? <div className="mt-4 rounded-xl border border-line bg-white/[0.02] p-3">{properties}</div> : null}
           <DescriptionEditor issue={issue} commit={commit} />
@@ -187,35 +192,59 @@ function TitleEditor({
   commit,
   currentUser,
   onActivity,
-  serverTitleEpoch,
+  titleReload,
 }: {
   issue: IssueDTO;
   commit: Commit;
   currentUser: UserDTO;
   onActivity: (activity: ActivityDTO) => void;
-  serverTitleEpoch: number;
+  titleReload: TitleReloadRequest | null;
 }) {
   const router = useRouter();
   const field = useRef<HTMLTextAreaElement>(null);
   const acknowledgedTitle = useRef(issue.title);
   const dirty = useRef(false);
-  const seenEpoch = useRef(serverTitleEpoch);
+  const appliedReloadId = useRef(0);
+  const replacing = useRef(false);
+  const generationRef = useRef(0);
+  const pendingGeneration = useRef<number | null>(null);
   const [title, setTitle] = useState(issue.title);
+  const [generation, setGeneration] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  useLayoutEffect(() => {
+    if (pendingGeneration.current === null || generation !== pendingGeneration.current) return;
+    pendingGeneration.current = null;
+    const frame = requestAnimationFrame(() => {
+      replacing.current = false;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [generation]);
+
   useEffect(() => {
-    if (seenEpoch.current !== serverTitleEpoch) {
-      seenEpoch.current = serverTitleEpoch;
+    const decision = titleAfterReload(
+      { title: issue.title, updatedAt: issue.updatedAt },
+      titleReload,
+      appliedReloadId.current,
+    );
+    if (decision.action === "wait") return;
+    if (decision.action === "apply") {
+      appliedReloadId.current = decision.id;
+      const nextGeneration = generationRef.current + 1;
+      generationRef.current = nextGeneration;
+      pendingGeneration.current = nextGeneration;
+      replacing.current = true;
       dirty.current = false;
-      acknowledgedTitle.current = issue.title;
-      setTitle(issue.title);
+      acknowledgedTitle.current = decision.title;
+      setTitle(decision.title);
+      setGeneration(nextGeneration);
       return;
     }
     if (dirty.current) return;
     acknowledgedTitle.current = issue.title;
     setTitle(issue.title);
-  }, [issue.title, serverTitleEpoch]);
+  }, [issue.title, issue.updatedAt, titleReload]);
 
   useEffect(() => {
     const node = field.current;
@@ -225,6 +254,7 @@ function TitleEditor({
   }, [title]);
 
   async function save(rawValue: string) {
+    if (replacing.current) return;
     const next = rawValue.trim();
     if (!next || next === acknowledgedTitle.current) {
       dirty.current = false;
@@ -261,11 +291,13 @@ function TitleEditor({
         Title
       </label>
       <textarea
+        key={generation}
         ref={field}
         id="issue-title"
         value={title}
         rows={1}
         onChange={(event) => {
+          if (replacing.current) return;
           dirty.current = true;
           setTitle(event.target.value);
         }}
