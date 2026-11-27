@@ -85,3 +85,15 @@ Pull request of the same commit: [46025550052](https://github.com/bob1525/linear
 - `Playwright`: 2026-11-27 15:30:44Z to 15:33:36Z. **58 passed** (1.6 minutes). `shows which issue failed when part of a batch no longer exists` passed on the first attempt (6.3 seconds).
 
 Performance on the same commit, not required: [46025550099](https://github.com/bob1525/linear-build/actions/runs/46025550099), conclusion success. Board-load median 475 ms, `status=ok`. List-load median 448 ms, 19 mounted at the top and 19 at the end.
+
+Push of `a81b4d2`: [46026996025](https://github.com/bob1525/linear-build/actions/runs/46026996025), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 15:40:32Z to 15:41:24Z. **125 passed** (18 files).
+- `Playwright`: 2026-11-27 15:40:32Z to 15:43:09Z. **58 passed** (1.3 minutes). `signs up, creates a project, and shows the empty board` passed on the first attempt (516 ms). `the later saver of an issue gets a conflict prompt` passed on the first attempt (3.2 seconds).
+
+Pull request of the same commit: [46027006695](https://github.com/bob1525/linear-build/actions/runs/46027006695), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 15:40:36Z to 15:41:22Z. **125 passed** (18 files).
+- `Playwright`: 2026-11-27 15:40:36Z to 15:43:35Z. **58 passed** (1.7 minutes). The signup test passed on the first attempt (613 ms). The conflict test passed on the first attempt (3.4 seconds).
+
+Performance on the same commit, not required: [46027006663](https://github.com/bob1525/linear-build/actions/runs/46027006663), conclusion success. Board-load median 425 ms, `status=ok`. List-load median 405 ms, 19 mounted at the top and 18 at the end.
