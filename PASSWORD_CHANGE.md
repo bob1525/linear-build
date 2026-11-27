@@ -41,4 +41,14 @@ The next run saved the password and still showed the filled form, with no succes
 
 ## Actions run
 
-Filled in after the push and pull_request workflows for this commit finish.
+Push of `1913b03`: [46004443850](https://github.com/bob1525/linear-build/actions/runs/46004443850), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 13:07:51Z to 13:08:34Z. **105 passed**.
+- `Playwright`: 2026-11-27 13:07:51Z to 13:10:36Z. **52 passed** (1.5 minutes). `the later saver of an issue gets a conflict prompt` passed on the first attempt (2.5 seconds). The keyboard test passed on the first attempt (552 ms). `a signed-in user replaces their password and other sessions end` passed on the first attempt (2.2 seconds). `blocks a run of wrong current passwords for one account` passed on the first attempt (2.1 seconds).
+
+Pull request of the same commit: [46004455900](https://github.com/bob1525/linear-build/actions/runs/46004455900), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 13:07:57Z to 13:08:50Z. **105 passed**.
+- `Playwright`: 2026-11-27 13:07:57Z to 13:10:48Z. **52 passed** (1.4 minutes). The conflict test passed on the first attempt (2.5 seconds). The keyboard test passed on the first attempt (405 ms). The password replacement passed on the first attempt (1.9 seconds). The wrong-current-password limit passed on the first attempt (1.5 seconds).
+
+Performance on the same commit, not required: [46004456032](https://github.com/bob1525/linear-build/actions/runs/46004456032), conclusion success.
