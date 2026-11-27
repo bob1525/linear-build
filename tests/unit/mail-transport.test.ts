@@ -194,6 +194,14 @@ describe("resolveMail", () => {
     expect(resolveMail({ NODE_ENV: "development", MAIL_TRANSPORT: "off", SMTP_URL: "smtp://127.0.0.1:2525", MAIL_FROM: "a@b.co" }).mode).toBe(
       "disabled",
     );
+    expect(
+      resolveMail({
+        NODE_ENV: "production",
+        MAIL_TRANSPORT: "outbox",
+        MAIL_E2E_OUTBOX: "1",
+        MAIL_OUTBOX: "/tmp/e2e-outbox.jsonl",
+      }),
+    ).toMatchObject({ mode: "outbox", path: "/tmp/e2e-outbox.jsonl" });
     expect(resolveMail({ NODE_ENV: "test", MAIL_TRANSPORT: "maybe" }).mode).toBe("disabled");
   });
 

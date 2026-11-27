@@ -13,16 +13,32 @@ export default defineConfig({
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
-  webServer: {
-    command: "npm run start:e2e",
-    url: "http://127.0.0.1:3100/login",
-    reuseExistingServer: false,
-    timeout: 120_000,
-    env: {
-      DATABASE_URL: "file:./e2e.db",
-      NORTHSTAR_SHOW_DEMO: "1",
+  webServer: [
+    {
+      command: "npm run start:e2e",
+      url: "http://127.0.0.1:3100/login",
+      reuseExistingServer: false,
+      timeout: 120_000,
+      env: {
+        DATABASE_URL: "file:./e2e.db",
+        NORTHSTAR_SHOW_DEMO: "1",
+      },
     },
-  },
+    {
+      command: "npm run start:e2e:mail",
+      url: "http://127.0.0.1:3101/login",
+      reuseExistingServer: false,
+      timeout: 120_000,
+      env: {
+        DATABASE_URL: "file:./e2e-mail.db",
+        NORTHSTAR_SHOW_DEMO: "1",
+        MAIL_TRANSPORT: "outbox",
+        MAIL_E2E_OUTBOX: "1",
+        MAIL_OUTBOX: ".mail/e2e-outbox.jsonl",
+        MAIL_FROM: "Northstar <northstar@localhost>",
+      },
+    },
+  ],
   projects: [
     {
       name: "mobile",
@@ -37,8 +53,13 @@ export default defineConfig({
     },
     {
       name: "chromium",
-      testIgnore: /mobile\.spec\.ts/,
+      testIgnore: [/mobile\.spec\.ts/, /password-reset-mail\.spec\.ts/],
       use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "mail",
+      testMatch: /password-reset-mail\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], baseURL: "http://127.0.0.1:3101" },
     },
   ],
 });

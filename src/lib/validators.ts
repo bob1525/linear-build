@@ -26,6 +26,21 @@ export const signupSchema = z
     path: ["confirmPassword"],
   });
 
+export const requestPasswordResetSchema = z.object({
+  email: emailSchema,
+});
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().trim().min(20, "This reset link is invalid or has expired.").max(200),
+    newPassword: z.string().min(8, "Use at least 8 characters").max(200, "Password is too long"),
+    confirmPassword: z.string(),
+  })
+  .refine((value) => value.newPassword === value.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "Enter your current password"),

@@ -9,6 +9,8 @@ export const LOGIN_SUCCESS_EMAIL_LIMIT = 120;
 export const LOGIN_SUCCESS_IP_LIMIT = 400;
 export const SIGNUP_EMAIL_LIMIT = 5;
 export const SIGNUP_IP_LIMIT = 30;
+export const RESET_EMAIL_LIMIT = 5;
+export const RESET_ADDRESS_LIMIT = 30;
 export const AUTH_WINDOW_MS = 15 * 60 * 1000;
 
 export type RateLimitDecision = { allowed: true } | { allowed: false; retryAfterMs: number };

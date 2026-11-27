@@ -81,6 +81,7 @@ describe("postgres path", () => {
     try {
       const first = await run(["tsx", "scripts/apply-postgres-migrations.ts"], url);
       expect(first).toContain("20261127120000_init");
+      expect(first).toContain("20261127130000_password_reset");
       expect(first).toContain("All migrations have been successfully applied.");
       const second = await run(["tsx", "scripts/apply-postgres-migrations.ts"], url);
       expect(second).toContain("No pending migrations to apply.");
@@ -93,7 +94,10 @@ describe("postgres path", () => {
       const recorded = await prisma.$queryRawUnsafe<Array<{ migration_name: string }>>(
         "SELECT migration_name FROM _prisma_migrations ORDER BY migration_name",
       );
-      expect(recorded.map((row) => row.migration_name)).toEqual(["20261127120000_init"]);
+      expect(recorded.map((row) => row.migration_name)).toEqual([
+        "20261127120000_init",
+        "20261127130000_password_reset",
+      ]);
 
       const now = Date.now();
       for (let attempt = 0; attempt < 8; attempt += 1) {

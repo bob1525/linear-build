@@ -21,6 +21,7 @@ model User {
   comments      Comment[]
   activities    Activity[]
   savedViews    SavedView[]
+  passwordResets PasswordResetToken[]
 }
 
 model Session {
@@ -181,4 +182,15 @@ model RateLimitEvent {
   at     DateTime
 
   @@index([bucket, key, at])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

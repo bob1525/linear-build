@@ -8,6 +8,8 @@ import {
   LOGIN_SUCCESS_EMAIL_LIMIT,
   LOGIN_SUCCESS_IP_LIMIT,
   RATE_LIMIT_MESSAGE,
+  RESET_ADDRESS_LIMIT,
+  RESET_EMAIL_LIMIT,
   SIGNUP_EMAIL_LIMIT,
   SIGNUP_IP_LIMIT,
   type RateLimitDecision,
@@ -21,6 +23,8 @@ export const SIGNUP_EMAIL_BUCKET = "signup-email";
 export const SIGNUP_ADDRESS_BUCKET = "signup-address";
 export const PASSWORD_EMAIL_BUCKET = "password-email";
 export const PASSWORD_ADDRESS_BUCKET = "password-address";
+export const RESET_EMAIL_BUCKET = "reset-email";
+export const RESET_ADDRESS_BUCKET = "reset-address";
 
 type EventStore = Pick<PrismaClient, "rateLimitEvent"> | SqlitePrisma.TransactionClient;
 type Store = PrismaClient;
@@ -160,6 +164,14 @@ export async function recordPasswordFailure(db: Store, email: string, address: s
     { bucket: PASSWORD_EMAIL_BUCKET, key: email, limit: LOGIN_FAILURE_LIMIT },
     { bucket: PASSWORD_ADDRESS_BUCKET, key: address, limit: LOGIN_FAILURE_IP_LIMIT },
   ], now);
+}
+
+export async function consumeResetRequest(db: Store, email: string, address: string, now = Date.now()): Promise<string | null> {
+  const reserved = await reserveSlots(db, [
+    { bucket: RESET_EMAIL_BUCKET, key: email, limit: RESET_EMAIL_LIMIT },
+    { bucket: RESET_ADDRESS_BUCKET, key: address, limit: RESET_ADDRESS_LIMIT },
+  ], now);
+  return reserved ? null : RATE_LIMIT_MESSAGE;
 }
 
 export async function consumeSignup(db: Store, email: string, address: string, now = Date.now()): Promise<string | null> {

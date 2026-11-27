@@ -5,6 +5,7 @@ import { loadDatabaseUrl } from "./load-env";
 
 const INIT_MIGRATION = "20261127100000_init";
 const RATE_LIMIT_MIGRATION = "20261127100100_rate_limit_event";
+const PASSWORD_RESET_MIGRATION = "20261127100200_password_reset";
 
 const BASELINE_TABLES = [
   "User",
@@ -107,6 +108,16 @@ async function baselineExistingDatabase(deployOutput: string) {
       process.exit(rate.status);
     }
     process.stdout.write(rate.output);
+  }
+
+  if (tables.has("PasswordResetToken")) {
+    console.log(`Marked ${PASSWORD_RESET_MIGRATION} applied because PasswordResetToken is already present.`);
+    const reset = runPrisma(["migrate", "resolve", "--applied", PASSWORD_RESET_MIGRATION]);
+    if (!reset.ok) {
+      process.stderr.write(reset.output);
+      process.exit(reset.status);
+    }
+    process.stdout.write(reset.output);
   }
 
   const deployed = runPrisma(["migrate", "deploy"]);

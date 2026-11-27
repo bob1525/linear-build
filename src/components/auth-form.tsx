@@ -99,6 +99,13 @@ export function AuthForm({
                 <TextField name="confirmPassword" type="password" autoComplete="new-password" required minLength={8} />
               </Field>
             ) : null}
+            {mode === "login" ? (
+              <p className="text-right text-[12px]">
+                <Link href="/forgot-password" className="text-ink-muted hover:text-ink hover:underline">
+                  Forgot password?
+                </Link>
+              </p>
+            ) : null}
             <Button type="submit" size="lg" className="w-full" disabled={pending}>
               {pending ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
             </Button>

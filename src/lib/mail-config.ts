@@ -20,6 +20,7 @@ export type MailEnv = {
   MAIL_FROM?: string;
   MAIL_OUTBOX?: string;
   MAIL_TRANSPORT?: string;
+  MAIL_E2E_OUTBOX?: string;
 };
 
 const DEFAULT_OUTBOX = ".mail/outbox.jsonl";
@@ -57,7 +58,8 @@ export function resolveMail(env: MailEnv = process.env): MailConfig {
   const production = env.NODE_ENV === "production";
   const rawUrl = env.SMTP_URL?.trim() ?? "";
   const url = rawUrl ? smtpUrl(rawUrl) : null;
-  const from = parseMailbox(env.MAIL_FROM?.trim() || (!production ? DEFAULT_FROM : ""));
+  const e2eOutbox = env.MAIL_E2E_OUTBOX === "1" && transport === "outbox";
+  const from = parseMailbox(env.MAIL_FROM?.trim() || (!production || e2eOutbox ? DEFAULT_FROM : ""));
   const path = env.MAIL_OUTBOX?.trim() || DEFAULT_OUTBOX;
 
   if (transport === "off" || transport === "disabled") {
@@ -67,7 +69,7 @@ export function resolveMail(env: MailEnv = process.env): MailConfig {
     return { mode: "disabled", reason: "MAIL_TRANSPORT must be smtp, outbox, or off." };
   }
   if (transport === "outbox") {
-    if (production) {
+    if (production && env.MAIL_E2E_OUTBOX !== "1") {
       return { mode: "disabled", reason: "Production does not use the development outbox." };
     }
     if (!from) return { mode: "disabled", reason: "MAIL_FROM must be an email address." };

@@ -53,7 +53,7 @@ describe("versioned migrations", () => {
     apply(url);
     apply(url);
     expect(await recorded(url)).toEqual({
-      names: ["20261127100000_init", "20261127100100_rate_limit_event"],
+      names: ["20261127100000_init", "20261127100100_rate_limit_event", "20261127100200_password_reset"],
       events: 0,
     });
   }, 30_000);
@@ -64,7 +64,7 @@ describe("versioned migrations", () => {
     const output = apply(url);
     expect(output).toContain("Baselined 20261127100000_init");
     expect(await recorded(url)).toEqual({
-      names: ["20261127100000_init", "20261127100100_rate_limit_event"],
+      names: ["20261127100000_init", "20261127100100_rate_limit_event", "20261127100200_password_reset"],
       events: 0,
     });
   }, 30_000);
@@ -76,7 +76,7 @@ describe("versioned migrations", () => {
     const output = apply(url);
     expect(output).toContain("Marked 20261127100100_rate_limit_event applied");
     expect(await recorded(url)).toEqual({
-      names: ["20261127100000_init", "20261127100100_rate_limit_event"],
+      names: ["20261127100000_init", "20261127100100_rate_limit_event", "20261127100200_password_reset"],
       events: 0,
     });
   }, 30_000);

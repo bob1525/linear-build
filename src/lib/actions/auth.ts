@@ -7,10 +7,11 @@ import { SESSION_COOKIE } from "@/lib/cookies";
 import { getLandingPath } from "@/lib/data";
 import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
+import { requestPasswordReset, resetPassword, resetRequestOrigin } from "@/lib/password-reset";
 import { RATE_LIMIT_MESSAGE, readClientAddress } from "@/lib/rate-limit";
 import { consumeSignup, loginIsLimited, passwordChangeIsLimited, recordLoginFailure, recordLoginSuccess, recordPasswordFailure } from "@/lib/rate-limit-store";
 import { fail, ok, type ActionResult } from "@/lib/types";
-import { changePasswordSchema, firstIssue, loginSchema, signupSchema } from "@/lib/validators";
+import { changePasswordSchema, firstIssue, loginSchema, resetPasswordSchema, signupSchema } from "@/lib/validators";
 
 async function clientAddress() {
   const headerStore = await headers();
@@ -101,6 +102,32 @@ export async function changePasswordAction(input: {
     where: { userId: user.id, ...(token ? { NOT: { token } } : {}) },
   });
   return ok({ updated: true });
+}
+
+export async function requestPasswordResetAction(input: { email: string }): Promise<ActionResult<{ message: string }>> {
+  const headerStore = await headers();
+  const origin = resetRequestOrigin((name) => headerStore.get(name));
+  if (!origin) return fail("Password reset email is unavailable until mail delivery is configured.");
+  const result = await requestPasswordReset(prisma, {
+    email: input.email,
+    address: await clientAddress(),
+    origin,
+  });
+  if (!result.ok) return fail(result.error);
+  return ok({ message: result.message });
+}
+
+export async function resetPasswordAction(input: {
+  token: string;
+  newPassword: string;
+  confirmPassword: string;
+}): Promise<ActionResult<{ redirectTo: string }>> {
+  const parsed = resetPasswordSchema.safeParse(input);
+  if (!parsed.success) return fail(firstIssue(parsed.error));
+  const result = await resetPassword(prisma, parsed.data);
+  if (!result.ok) return fail(result.error);
+  await createSession(result.userId);
+  return ok({ redirectTo: await getLandingPath(result.userId) });
 }
 
 export async function logoutAction(): Promise<ActionResult<{ redirectTo: string }>> {

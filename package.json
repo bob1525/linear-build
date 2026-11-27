@@ -21,10 +21,12 @@
     "db:setup": "tsx scripts/apply-migrations.ts && tsx prisma/seed.ts",
     "db:setup:pg": "tsx scripts/apply-postgres-migrations.ts && tsx prisma/seed.ts",
     "db:e2e": "rm -f prisma/e2e.db prisma/e2e.db-journal && DATABASE_URL=file:./e2e.db tsx scripts/apply-migrations.ts && DATABASE_URL=file:./e2e.db tsx prisma/seed.ts",
+    "db:e2e:mail": "rm -f prisma/e2e-mail.db prisma/e2e-mail.db-journal && DATABASE_URL=file:./e2e-mail.db tsx scripts/apply-migrations.ts && DATABASE_URL=file:./e2e-mail.db tsx prisma/seed.ts",
     "db:perf": "rm -f prisma/perf.db prisma/perf.db-journal && DATABASE_URL=file:./perf.db tsx scripts/apply-migrations.ts && DATABASE_URL=file:./perf.db tsx scripts/seed-perf.ts",
     "perf": "tsx scripts/run-perf.ts",
     "start:e2e": "DATABASE_URL=file:./e2e.db next start -p 3100",
-    "test:e2e": "npm run db:e2e && next build && playwright test",
+    "start:e2e:mail": "DATABASE_URL=file:./e2e-mail.db next start -p 3101",
+    "test:e2e": "npm run db:e2e && npm run db:e2e:mail && next build && playwright test",
     "screenshots": "tsx scripts/capture-screenshots.ts",
     "postinstall": "prisma generate && DATABASE_URL=postgresql://127.0.0.1:5432/northstar prisma generate --schema prisma/postgres/schema.prisma"
   },
