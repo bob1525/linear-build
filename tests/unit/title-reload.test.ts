@@ -1,10 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { titleAfterReload } from "@/lib/title-reload";
+import { joinedReloadValue, titleAfterReload } from "@/lib/title-reload";
 
 const loaded = "Conflict original";
 const saved = "Conflict marcus";
 const older = "2026-11-27T10:00:00.000Z";
 const newer = "2026-11-27T10:05:00.000Z";
+
+describe("joinedReloadValue", () => {
+  const parts = { to: "Conflict marcus", from: "Conflict original", shown: "Conflict reload me" };
+
+  it("recognizes the reloaded title joined to the loaded title or the draft", () => {
+    expect(joinedReloadValue("Conflict marcusConflict original", parts)).toBe(true);
+    expect(joinedReloadValue("Conflict originalConflict marcus", parts)).toBe(true);
+    expect(joinedReloadValue("Conflict marcusConflict reload me", parts)).toBe(true);
+    expect(joinedReloadValue("Conflict reload meConflict marcus", parts)).toBe(true);
+  });
+
+  it("leaves the reloaded title and a normal edit alone", () => {
+    expect(joinedReloadValue("Conflict marcus", parts)).toBe(false);
+    expect(joinedReloadValue("Conflict marcus!", parts)).toBe(false);
+    expect(joinedReloadValue("", parts)).toBe(false);
+  });
+});
 
 describe("titleAfterReload", () => {
   it("does not write the loaded title while the page is still on the older version", () => {

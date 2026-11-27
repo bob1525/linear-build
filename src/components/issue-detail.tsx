@@ -10,7 +10,7 @@ import { PRIORITIES, STATUSES, priorityLabel, statusLabel, type Priority, type S
 import { isOverdue, toDateInputValue } from "@/lib/format";
 import type { ActionResult, ActivityDTO, CommentDTO, IssueCandidate, IssueDTO, IssueRelationGroups, LabelDTO, ProjectSummary, UserDTO } from "@/lib/types";
 import { IssueRelations } from "@/components/issue-relations";
-import { titleAfterReload, type TitleReloadRequest } from "@/lib/title-reload";
+import { joinedReloadValue, titleAfterReload, type TitleReloadRequest } from "@/lib/title-reload";
 import { cn } from "@/lib/cn";
 import { Avatar, LabelPill } from "@/components/avatar";
 import { PriorityIcon, StatusIcon } from "@/components/icons";
@@ -206,6 +206,7 @@ function TitleEditor({
   const dirty = useRef(false);
   const appliedReloadId = useRef(0);
   const replacing = useRef(false);
+  const replacedPair = useRef<{ to: string; from: string; shown: string } | null>(null);
   const generationRef = useRef(0);
   const pendingGeneration = useRef<number | null>(null);
   const [title, setTitle] = useState(issue.title);
@@ -216,11 +217,15 @@ function TitleEditor({
   useLayoutEffect(() => {
     if (pendingGeneration.current === null || generation !== pendingGeneration.current) return;
     pendingGeneration.current = null;
+    const node = field.current;
+    if (node && node.value !== title) node.value = title;
     const frame = requestAnimationFrame(() => {
       replacing.current = false;
+      const current = field.current;
+      if (current && current.value !== title) current.value = title;
     });
     return () => cancelAnimationFrame(frame);
-  }, [generation]);
+  }, [generation, title]);
 
   useEffect(() => {
     const decision = titleAfterReload(
@@ -236,6 +241,7 @@ function TitleEditor({
       pendingGeneration.current = nextGeneration;
       replacing.current = true;
       dirty.current = false;
+      replacedPair.current = { to: decision.title, from: acknowledgedTitle.current, shown: title };
       acknowledgedTitle.current = decision.title;
       setTitle(decision.title);
       setGeneration(nextGeneration);
@@ -253,8 +259,18 @@ function TitleEditor({
     node.style.height = `${node.scrollHeight}px`;
   }, [title]);
 
+  function rejectJoined(value: string) {
+    const pair = replacedPair.current;
+    return replacing.current || (pair !== null && joinedReloadValue(value, pair));
+  }
+
   async function save(rawValue: string) {
-    if (replacing.current) return;
+    if (rejectJoined(rawValue)) {
+      const node = field.current;
+      if (node && node.value !== title) node.value = title;
+      return;
+    }
+    replacedPair.current = null;
     const next = rawValue.trim();
     if (!next || next === acknowledgedTitle.current) {
       dirty.current = false;
@@ -297,9 +313,14 @@ function TitleEditor({
         value={title}
         rows={1}
         onChange={(event) => {
-          if (replacing.current) return;
+          const next = event.target.value;
+          if (rejectJoined(next)) {
+            if (event.currentTarget.value !== title) event.currentTarget.value = title;
+            return;
+          }
+          replacedPair.current = null;
           dirty.current = true;
-          setTitle(event.target.value);
+          setTitle(next);
         }}
         onBlur={(event) => void save(event.currentTarget.value)}
         onKeyDown={(event) => {
