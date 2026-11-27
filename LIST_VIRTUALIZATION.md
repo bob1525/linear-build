@@ -67,4 +67,14 @@ The height box was `shrink-0` in the first cut, so this stage did not repeat the
 
 ## Actions run
 
-Filled in after the push and pull_request workflows for this commit finish.
+Push of `0041bce`: [46002297279](https://github.com/bob1525/linear-build/actions/runs/46002297279), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 12:52:36Z to 12:53:44Z. **102 passed** (15 files).
+- `Playwright`: 2026-11-27 12:52:36Z to 12:55:29Z. **48 passed** (1.4 minutes). `the later saver of an issue gets a conflict prompt` passed on the first attempt (2.6 seconds). The keyboard test passed on the first attempt (589 ms). `mounts a slice of a long list, selects every row, and opens the last issue` passed on the first attempt (1.7 seconds).
+
+Pull request of the same commit: [46002307434](https://github.com/bob1525/linear-build/actions/runs/46002307434), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 12:52:41Z to 12:53:35Z. **102 passed** (15 files).
+- `Playwright`: 2026-11-27 12:52:41Z to 12:55:29Z. **48 passed** (1.5 minutes). The conflict test passed on the first attempt (5.7 seconds). The keyboard test passed on the first attempt (494 ms). The long-list test passed on the first attempt (2.1 seconds).
+
+Performance on the same commit, not required: [46002307431](https://github.com/bob1525/linear-build/actions/runs/46002307431), conclusion success (12:52:41Z to 12:53:50Z). `PERF boardLoadMedianMs=415 budgetMs=1200 status=ok dragFrameP50Ms=16.7,16.7 dragFrameMaxMs=16.8,16.8`, `PERF scrollMountedAtTop=9 scrollMountedAtEnd=9 scrollMs=427 scrollFrameP50Ms=16.7 scrollFrameMaxMs=16.8`, and `PERF listLoadMedianMs=375 listMountedAtTop=19 listMountedAtEnd=18 listScrollMs=39 listSize=500 listHtmlBytes=348916`. No board-load warning.
