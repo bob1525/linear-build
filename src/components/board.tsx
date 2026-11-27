@@ -14,7 +14,8 @@ import { cn } from "@/lib/cn";
 import { ConflictPrompt } from "@/components/conflict-prompt";
 import { IssueCard } from "@/components/issue-card";
 import { StatusIcon } from "@/components/icons";
-import { useWindowFocus, windowKeyAction } from "@/components/use-window-focus";
+import { useWindowFocus, windowKeyAction, windowRowIndex } from "@/components/use-window-focus";
+import { adjacentStatus, columnEdgeNote, columnMoveDirection } from "@/lib/keyboard-move";
 
 type PendingMove = { status: Status; previous: Status; ticket: number };
 
@@ -38,12 +39,15 @@ export function Board({
   const [error, setError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<{ issueId: string; status: Status; actorName: string | null } | null>(null);
   const [overwritePending, setOverwritePending] = useState(false);
+  const [moveNote, setMoveNote] = useState("");
+  const [focusId, setFocusId] = useState<string | null>(null);
   const itemsRef = useRef(items);
   const pendingRef = useRef(new Map<string, PendingMove>());
   const ticketRef = useRef(0);
   const chainRef = useRef(Promise.resolve());
   const draggingRef = useRef(false);
   const wantsRefreshRef = useRef(false);
+  const keyboardFocusRef = useRef<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const signature = issues.map((issue) => `${issue.id}:${issue.status}:${issue.updatedAt}`).join("|");
   const [seen, setSeen] = useState(signature);
@@ -99,6 +103,7 @@ export function Board({
     else movers.current.delete(status);
   }, []);
   const hintId = useId();
+  const clearFocus = useCallback(() => setFocusId(null), []);
 
   function cross(status: Status, direction: -1 | 1, index: number) {
     const ids = STATUSES.map((item) => item.id);
@@ -112,25 +117,9 @@ export function Board({
     movers.current.get(nextStatus)?.(Math.min(index, count - 1));
   }
 
-  function onDragEnd(event: DragEndEvent) {
-    draggingRef.current = false;
-    setActiveId(null);
-    const issueId = String(event.active.id);
-    const overId = event.over ? String(event.over.id) : "";
-    if (!overId) {
-      maybeRefresh();
-      return;
-    }
-    const nextStatus = isStatus(overId) ? overId : itemsRef.current.find((issue) => issue.id === overId)?.status;
-    if (!nextStatus) {
-      maybeRefresh();
-      return;
-    }
+  function commitStatusMove(issueId: string, nextStatus: Status) {
     const current = itemsRef.current.find((issue) => issue.id === issueId);
-    if (!current || current.status === nextStatus || !isStatus(nextStatus)) {
-      maybeRefresh();
-      return;
-    }
+    if (!current || current.status === nextStatus) return false;
 
     const ticket = ++ticketRef.current;
     const previous = current.status;
@@ -147,8 +136,14 @@ export function Board({
         const pending = pendingRef.current.get(issueId);
         if (!pending || pending.ticket !== ticket) return;
         pendingRef.current.delete(issueId);
+        const fromKeyboard = keyboardFocusRef.current === issueId;
+        if (fromKeyboard) keyboardFocusRef.current = null;
         if (!result.ok) {
           setItems((currentItems) => currentItems.map((issue) => (issue.id === issueId ? { ...issue, status: previous } : issue)));
+          if (fromKeyboard) {
+            setFocusId(issueId);
+            setMoveNote(`${current.key} stayed in ${statusLabel(previous)}`);
+          }
           if (result.conflict) {
             setError(null);
             setConflict({ issueId, status: nextStatus, actorName: result.conflict.actorName });
@@ -167,6 +162,39 @@ export function Board({
         wantsRefreshRef.current = true;
         maybeRefresh();
       });
+    return true;
+  }
+
+  function onKeyboardMove(issueId: string, direction: -1 | 1) {
+    const current = itemsRef.current.find((issue) => issue.id === issueId);
+    if (!current || !isStatus(current.status)) return;
+    const nextStatus = adjacentStatus(current.status, direction);
+    if (!nextStatus) {
+      setMoveNote(columnEdgeNote(current.status, direction));
+      return;
+    }
+    const column = document.querySelector(`[data-testid="column-${nextStatus}"]`);
+    if (column instanceof HTMLElement) column.scrollIntoView({ block: "nearest", inline: "nearest" });
+    keyboardFocusRef.current = issueId;
+    if (!commitStatusMove(issueId, nextStatus)) {
+      keyboardFocusRef.current = null;
+      return;
+    }
+    setFocusId(issueId);
+    setMoveNote(`${current.key} moved to ${statusLabel(nextStatus)}`);
+  }
+
+  function onDragEnd(event: DragEndEvent) {
+    draggingRef.current = false;
+    setActiveId(null);
+    const issueId = String(event.active.id);
+    const overId = event.over ? String(event.over.id) : "";
+    if (!overId) {
+      maybeRefresh();
+      return;
+    }
+    const nextStatus = isStatus(overId) ? overId : itemsRef.current.find((issue) => issue.id === overId)?.status;
+    if (!nextStatus || !isStatus(nextStatus) || !commitStatusMove(issueId, nextStatus)) maybeRefresh();
   }
 
   return (
@@ -192,7 +220,10 @@ export function Board({
           </p>
         ) : null}
         <p id={hintId} className="sr-only">
-          Use the arrow keys to move between cards. Home and End move to the ends of a column. A card that is off screen is shown when you move to it.
+          Use the arrow keys to move between cards. Home and End move to the ends of a column. Alt and the left or right arrow moves the focused card to the neighboring column. A card that is off screen is shown when you move to it.
+        </p>
+        <p role="status" aria-live="polite" data-testid="board-move-status" className="sr-only">
+          {moveNote}
         </p>
         <div data-testid="board-scroll" role="region" aria-label="Board" aria-describedby={hintId} className="flex min-h-0 flex-1 gap-3 overflow-x-auto px-3 pb-4 pt-3 sm:px-4">
           {STATUSES.map((status) => (
@@ -207,6 +238,9 @@ export function Board({
               pinnedIds={pinnedIds}
               onRegister={register}
               onCross={cross}
+              onKeyboardMove={onKeyboardMove}
+              focusId={focusId}
+              onFocusHandled={clearFocus}
             />
           ))}
         </div>
@@ -244,6 +278,9 @@ function Column({
   pinnedIds,
   onRegister,
   onCross,
+  onKeyboardMove,
+  focusId,
+  onFocusHandled,
 }: {
   status: Status;
   issues: IssueDTO[];
@@ -254,6 +291,9 @@ function Column({
   pinnedIds: string[];
   onRegister: (status: Status, move: ((index: number) => void) | null) => void;
   onCross: (status: Status, direction: -1 | 1, index: number) => void;
+  onKeyboardMove: (issueId: string, direction: -1 | 1) => void;
+  focusId: string | null;
+  onFocusHandled: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -323,7 +363,25 @@ function Column({
     return () => onRegister(status, null);
   }, [onRegister, status]);
 
+  useLayoutEffect(() => {
+    if (!focusId) return;
+    const index = issues.findIndex((issue) => issue.id === focusId);
+    if (index < 0) return;
+    moveToRef.current(index);
+    onFocusHandled();
+  }, [focusId, issues, onFocusHandled]);
+
   function onKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (document.querySelector("[data-menu-open]")) return;
+    const direction = columnMoveDirection(event.nativeEvent);
+    if (direction) {
+      const index = windowRowIndex(event.target);
+      const issue = index === null ? undefined : issues[index];
+      if (!issue) return;
+      event.preventDefault();
+      onKeyboardMove(issue.id, direction);
+      return;
+    }
     const action = windowKeyAction(event.nativeEvent, issues.length);
     if (!action) return;
     event.preventDefault();

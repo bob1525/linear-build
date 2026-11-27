@@ -7,7 +7,7 @@ export type WindowKeyAction =
   | { type: "move"; index: number }
   | { type: "cross"; direction: -1 | 1; index: number };
 
-function rowIndex(target: EventTarget | null): number | null {
+export function windowRowIndex(target: EventTarget | null): number | null {
   if (!(target instanceof HTMLElement)) return null;
   if (
     target instanceof HTMLInputElement ||
@@ -27,7 +27,7 @@ function rowIndex(target: EventTarget | null): number | null {
 export function windowKeyAction(event: KeyboardEvent, count: number): WindowKeyAction | null {
   if (event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) return null;
   if (document.querySelector("[data-menu-open]")) return null;
-  const current = rowIndex(event.target);
+  const current = windowRowIndex(event.target);
   if (current === null) return null;
   if (event.key === "ArrowLeft") return { type: "cross", direction: -1, index: current };
   if (event.key === "ArrowRight") return { type: "cross", direction: 1, index: current };

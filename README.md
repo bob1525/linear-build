@@ -10,14 +10,14 @@ Northstar is a lightweight issue tracker for product teams. It covers the everyd
 - Multiple projects, with the last opened project remembered across visits.
 - Issues with a title, Markdown description, status, priority, assignee, due date, and labels.
 - Status workflow: Backlog, Todo, In Progress, and Done.
-- Kanban board with drag-and-drop between columns, plus a list view with inline status changes. A column of 10 or more cards mounts the visible slice, the card being dragged, and cards just moved. Shorter columns stay fully mounted.
+- Kanban board with drag-and-drop between columns, plus a list view with inline status changes. A focused card moves to the neighboring column with Alt and the left or right arrow, and stays in the current sort. A column of 10 or more cards mounts the visible slice, the card being dragged, and cards just moved. Shorter columns stay fully mounted.
 - Issue page with rendered Markdown (including tables), comments, and an activity log of who changed what and when.
 - Relations on an issue: blocks, blocked by, and related to, plus one level of sub-issues. Blocking issues are marked on the board and the list. A blocking cycle is rejected.
 - Saved views store the current filters, sort, and Board or List choice. Each person has their own views, can rename or delete them, and can mark one as the default for a project.
 - Batch edits on the board and the list: Shift or Ctrl/Cmd click, select all, then change status, assignee, or labels, or delete after a confirmation. A partial failure lists the issues that succeeded and the ones that did not. A batch that overlaps a newer save reports that issue as a conflict instead of overwriting it.
 - Concurrent edits: the issue page, the list, and a board drag send the version that was loaded. If someone else saved first, the later save stops and a prompt offers to reload their version or overwrite it.
 - Filters that combine: status, priority, assignee (including unassigned), label, and keyword search across the key, title, and description. Filters stay in the URL.
-- Keyboard shortcuts: `C` opens a new issue, `/` focuses search, `Esc` closes menus and dialogs, and `⌘/Ctrl+Enter` submits the issue and comment composers.
+- Keyboard shortcuts: `C` opens a new issue, `/` focuses search, `Esc` closes menus and dialogs, `⌘/Ctrl+Enter` submits the issue and comment composers, and Alt plus the left or right arrow moves a focused board card to the neighboring column.
 - Empty, loading, and error states for a new workspace, an empty project, a filter with no matches, and a failed page.
 
 ## Screenshots
@@ -190,6 +190,10 @@ Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A pu
 - Sign-in counts failed passwords: 8 per email and 40 per client address, each in a 15 minute window. Registration counts every accepted form: 5 per email and 30 per client address, in the same window. A signed-in password change counts a wrong current password the same way as a failed sign-in, 8 per email and 40 per address, in its own rows so it does not lock sign-in. Each count is a row in `RateLimitEvent` in the same SQLite file, so a restart keeps it and another process that opens that file sees it. With `TRUST_PROXY` unset, the address is `local` even if the request sends `x-forwarded-for` or `x-real-ip`. With `TRUST_PROXY=1`, the address is the first forwarded hop, then `x-real-ip`, then `local`. There is still no email verification and no forgot-password flow. Those need a mail provider. Passwords are bcrypt with 10 rounds. The signed-in form is at `/account`.
 
 ## Documentation
+
+Continued upgrade round:
+
+- [KEYBOARD_MOVE.md](KEYBOARD_MOVE.md) moves a focused board card to the neighboring column from the keyboard.
 
 Follow-up round:
 
