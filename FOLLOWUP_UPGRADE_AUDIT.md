@@ -79,4 +79,14 @@ The Actions run for this audit commit is in the next section.
 
 ## Actions run
 
-Recorded after the workflow for this commit finishes.
+Push of `c353d4c` (the audit, the README index, and the merge checklist): [46010212533](https://github.com/bob1525/linear-build/actions/runs/46010212533), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 13:47:59Z to 13:48:42Z. **114 passed** (16 files).
+- `Playwright`: 2026-11-27 13:47:59Z to 13:50:41Z. **56 passed** (1.6 minutes). `the later saver of an issue gets a conflict prompt` passed on the first attempt (3.5 seconds). The keyboard test passed on the first attempt (446 ms).
+
+Pull request of `c353d4c`: [46010220492](https://github.com/bob1525/linear-build/actions/runs/46010220492), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 13:48:03Z to 13:49:04Z. **114 passed** (16 files).
+- `Playwright`: 2026-11-27 13:48:03Z to 13:50:28Z. **56 passed** (1.3 minutes). The conflict test passed on the first attempt (3.6 seconds). The keyboard test passed on the first attempt (414 ms).
+
+Hosted Performance of `c353d4c`: [46010220404](https://github.com/bob1525/linear-build/actions/runs/46010220404), conclusion success, 13:48:02Z to 13:49:24Z. Board-load median **447 ms**, `budgetMs=1200` `status=ok`. List-load median **398 ms**, 19 mounted at the top and 18 at the end.
