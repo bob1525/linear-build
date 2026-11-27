@@ -47,7 +47,7 @@ export function ChangePasswordForm() {
     <form
       onSubmit={(event) => void onSubmit(event)}
       aria-labelledby="change-password-heading"
-      aria-describedby="change-password-note"
+      aria-describedby="change-password-note mail-status"
       aria-busy={pending}
       className="space-y-3"
     >

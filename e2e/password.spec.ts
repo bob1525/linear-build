@@ -91,6 +91,9 @@ test("the account link opens the password form", async ({ page }) => {
   await expect(page).toHaveURL(/\/account/);
   await expect(page.getByRole("heading", { name: "Change password" })).toBeVisible();
   await expect(page.getByLabel("Current password")).toBeVisible();
+  await expect(page.getByTestId("mail-status")).toHaveText(
+    "Email delivery is not configured, so features that send mail stay off.",
+  );
 });
 
 test("a logged-out visit to the password page goes to sign in", async ({ page }) => {

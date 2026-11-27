@@ -193,9 +193,14 @@ Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A pu
 
 - The seed creates Ava Chen, Marcus Hale, Priya Nair, and Leo Park, all with the password `demo1234`. Those accounts are fixtures. On a public server, start from an empty file, or change every password and delete the accounts you do not want.
 - Do not set `NORTHSTAR_SHOW_DEMO=1`. Without it, production does not render Fill demo or the demo password.
-- Sign-in counts failed passwords: 8 per email and 40 per client address, each in a 15 minute window. A successful sign-in counts too, in its own rows: 120 per email and 400 per address in that same window. Registration counts every accepted form: 5 per email and 30 per client address. A signed-in password change counts a wrong current password the same way as a failed sign-in, 8 per email and 40 per address, in its own rows so it does not lock sign-in. A correct password change does not consume a slot. Each count is a row in `RateLimitEvent`. The count and the insert are one statement, so a parallel burst cannot store more rows than the limit. A restart keeps the rows, and another process that opens that file sees them. With `TRUST_PROXY` unset, the address is `local` even if the request sends `x-forwarded-for` or `x-real-ip`. With `TRUST_PROXY=1`, the address is the first forwarded hop, then `x-real-ip`, then `local`. There is still no email verification and no forgot-password flow. Those need a mail provider. Passwords are bcrypt with 10 rounds. The signed-in form is at `/account`.
+- Sign-in counts failed passwords: 8 per email and 40 per client address, each in a 15 minute window. A successful sign-in counts too, in its own rows: 120 per email and 400 per address in that same window. Registration counts every accepted form: 5 per email and 30 per client address. A signed-in password change counts a wrong current password the same way as a failed sign-in, 8 per email and 40 per address, in its own rows so it does not lock sign-in. A correct password change does not consume a slot. Each count is a row in `RateLimitEvent`. The count and the insert are one statement, so a parallel burst cannot store more rows than the limit. A restart keeps the rows, and another process that opens that file sees them. With `TRUST_PROXY` unset, the address is `local` even if the request sends `x-forwarded-for` or `x-real-ip`. With `TRUST_PROXY=1`, the address is the first forwarded hop, then `x-real-ip`, then `local`. There is still no email verification and no forgot-password flow. Mail is sent over SMTP when `SMTP_URL` and `MAIL_FROM` are both set. With neither set, production keeps features that send mail off and says so on `/account`. Development writes those messages to a local outbox instead. See [MAIL_TRANSPORT.md](MAIL_TRANSPORT.md). Passwords are bcrypt with 10 rounds. The signed-in form is at `/account`.
 
 ## Documentation
+
+Mail and robustness round:
+
+- [MAIL_TRANSPORT.md](MAIL_TRANSPORT.md) is the SMTP transport and the development outbox. Production without SMTP does not send mail.
+- [NAV_REFRESH_CLEANUP.md](NAV_REFRESH_CLEANUP.md) stops sign-in, sign-up, and logout from racing a refresh.
 
 Continued upgrade round:
 
@@ -210,7 +215,7 @@ Follow-up round:
 - [FOLLOWUP_UPGRADE_AUDIT.md](FOLLOWUP_UPGRADE_AUDIT.md) summarizes the round and records the latest test run.
 - [CONFLICT_RELOAD_FIX.md](CONFLICT_RELOAD_FIX.md) replaces the title on conflict reload so the field does not keep a joined draft.
 - [LIST_VIRTUALIZATION.md](LIST_VIRTUALIZATION.md) windows long lists and records the 500-issue list measurement.
-- [PASSWORD_CHANGE.md](PASSWORD_CHANGE.md) is the signed-in password change, its rate limit, and what still needs a mail provider.
+- [PASSWORD_CHANGE.md](PASSWORD_CHANGE.md) is the signed-in password change and its rate limit.
 - [A11Y.md](A11Y.md) is the keyboard and screen-reader pass for the board, the list, dialogs, and the password form.
 
 Upgrade round:
