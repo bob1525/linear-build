@@ -64,3 +64,19 @@ A later local Playwright command, without `npm run db:e2e`, left the signup test
 - The title guard matches the draft, the loaded title, and the exact joined string. A truncated join, or a join with a character between the two titles, is still treated as an edit.
 - There is still no mail transport, forgot-password flow, or email verification. The seed password is still `demo1234`.
 - SQLite stays the default. Nothing in this stage changes the database or the rate limits.
+
+## Actions run
+
+`0611475`, `71356aa`, and `754aca9` are not the recorded head. Their runs are the failures in Problems found. These runs are `3ff0965`. No flaky test and no retry.
+
+Push of `3ff0965`: [46047753390](https://github.com/bob1525/linear-build/actions/runs/46047753390), conclusion success.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 18:12:57Z to 18:13:54Z. **128 passed** (18 files).
+- `Playwright`: 2026-11-27 18:12:57Z to 18:15:58Z. **59 passed** (1.7 minutes). `sign-in and logout show the signed-in board and the sign-in page on the first attempt` passed on the first attempt (1.1 seconds). `signs up, creates a project, and shows the empty board` passed on the first attempt (805 ms). `shows which issue failed when part of a batch no longer exists` passed on the first attempt (1.8 seconds). `the later saver of an issue gets a conflict prompt` passed on the first attempt (3.5 seconds). The keyboard test passed on the first attempt (426 ms). The move test passed on the first attempt (2.1 seconds). The Backlog edge passed on the first attempt (882 ms).
+
+Pull request of `3ff0965`: [46047762063](https://github.com/bob1525/linear-build/actions/runs/46047762063), conclusion success. No flaky test and no retry.
+
+- `Lint, typecheck, and unit tests`: 2026-11-27 18:13:01Z to 18:13:53Z. **128 passed** (18 files).
+- `Playwright`: 2026-11-27 18:13:01Z to 18:16:23Z. **59 passed** (1.7 minutes). The sign-in test passed on the first attempt (984 ms). Signup passed on the first attempt (625 ms). The batch-search test passed on the first attempt (5.3 seconds). The conflict test passed on the first attempt (3.3 seconds). The keyboard test passed on the first attempt (544 ms). The move test passed on the first attempt (2.0 seconds). The Backlog edge passed on the first attempt (919 ms).
+
+Performance on the same commit, not required: [46047762300](https://github.com/bob1525/linear-build/actions/runs/46047762300), conclusion success, 18:13:01Z to 18:14:08Z. Board-load median **396 ms**, `budgetMs=1200` `status=ok`. List-load median **382 ms**, 19 mounted at the top and 18 at the end.
