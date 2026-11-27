@@ -29,7 +29,89 @@ async function login(page: Page) {
 
 async function boardReady(page: Page) {
   await page.getByRole("heading", { name: "Todo" }).waitFor();
-  await page.getByRole("link", { name: "Perf 002" }).waitFor();
+  await page.locator("[data-testid='column-scroll-todo'] article a").first().waitFor();
+  const issues = await columnTotal(page);
+  if (issues !== 500) throw new Error(`Expected 500 issues on the board, found ${issues}`);
+}
+
+async function revealCard(page: Page, title: string) {
+  const link = page.getByRole("link", { name: title, exact: true });
+  if ((await link.count()) > 0) return;
+  const scrollers = page.locator("[data-column-scroll]");
+  const columns = await scrollers.count();
+  for (let column = 0; column < columns; column += 1) {
+    const scroller = scrollers.nth(column);
+    const max = await scroller.evaluate((node) => Math.max(0, (node as HTMLElement).scrollHeight - (node as HTMLElement).clientHeight));
+    const step = await scroller.evaluate((node) => Math.max(80, Math.floor((node as HTMLElement).clientHeight * 0.55)));
+    for (let top = 0; top <= max; top += step) {
+      await scroller.evaluate((node, value) => {
+        (node as HTMLElement).scrollTop = value;
+      }, top);
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+      if ((await link.count()) > 0) return;
+    }
+  }
+  await link.waitFor();
+}
+
+async function measureScroll(page: Page) {
+  const scroller = page.getByTestId("column-scroll-backlog");
+  const mountedAtTop = await scroller.locator("article").count();
+  const size = Number(await page.getByTestId("column-backlog").locator("header span").innerText());
+  await page.evaluate(
+    new Function(
+      `const gaps = [];
+       let last = performance.now();
+       const loop = (now) => {
+         gaps.push(now - last);
+         last = now;
+         window.__scrollRaf = requestAnimationFrame(loop);
+       };
+       window.__scrollGaps = gaps;
+       window.__scrollRaf = requestAnimationFrame(loop);`,
+    ) as () => void,
+  );
+  const started = Date.now();
+  await scroller.evaluate(
+    new Function(
+      "node",
+      `const end = Math.max(0, node.scrollHeight - node.clientHeight);
+       const t0 = performance.now();
+       return new Promise((resolve) => {
+         const step = (now) => {
+           const t = Math.min(1, (now - t0) / 400);
+           node.scrollTop = end * t;
+           if (t < 1) requestAnimationFrame(step);
+           else resolve();
+         };
+         requestAnimationFrame(step);
+       });`,
+    ) as (node: HTMLElement) => Promise<void>,
+  );
+  const scrollMs = Date.now() - started;
+  await page.waitForFunction(
+    new Function(
+      "expected",
+      `const el = document.querySelector("[data-testid='column-scroll-backlog']");
+       return el instanceof HTMLElement && Number(el.getAttribute("data-window-end")) === expected;`,
+    ) as (expected: number) => boolean,
+    size,
+  );
+  const mountedAtEnd = await scroller.locator("article").count();
+  const gaps = await page.evaluate(
+    new Function(
+      `if (window.__scrollRaf) cancelAnimationFrame(window.__scrollRaf);
+       return window.__scrollGaps || [];`,
+    ) as () => number[],
+  );
+  return {
+    size,
+    scrollMs,
+    mountedAtTop,
+    mountedAtEnd,
+    frameP50Ms: Math.round(percentile(gaps, 0.5) * 10) / 10,
+    frameMaxMs: Math.round(Math.max(...gaps, 0) * 10) / 10,
+  };
 }
 
 async function columnTotal(page: Page) {
@@ -55,7 +137,8 @@ async function loadBoard(page: Page) {
     };
   });
   const issues = await columnTotal(page);
-  return { elapsed, issues, ...navigation };
+  const mountedArticles = await page.locator("[data-testid^='column-scroll-'] article").count();
+  return { elapsed, issues, mountedArticles, ...navigation };
 }
 
 async function filterBySearch(page: Page) {
@@ -90,6 +173,7 @@ async function filterByPriority(page: Page) {
 async function dragOnce(page: Page, title: string) {
   await page.goto(`${baseURL}/p/PERF?all=1`);
   await boardReady(page);
+  await revealCard(page, title);
   const card = page.locator("article").filter({ has: page.getByRole("link", { name: title, exact: true }) });
   await card.evaluate(
     new Function(
@@ -131,7 +215,7 @@ async function dragOnce(page: Page, title: string) {
   await page.mouse.up();
   const gestureMs = Date.now() - gestureStarted;
   const settleStarted = Date.now();
-  await column.getByRole("link", { name: "Perf 002", exact: true }).waitFor();
+  await column.getByRole("link", { name: title, exact: true }).waitFor();
   const settleMs = Date.now() - settleStarted;
 
   const gaps = await page.evaluate(
@@ -172,6 +256,7 @@ async function main() {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await login(page);
   const loads = [await loadBoard(page), await loadBoard(page), await loadBoard(page)];
+  const scroll = await measureScroll(page);
   const searches = [await filterBySearch(page), await filterBySearch(page), await filterBySearch(page)];
   const priorities = [await filterByPriority(page), await filterByPriority(page), await filterByPriority(page)];
   const drags = [await dragOnce(page, "Perf 002"), await dragOnce(page, "Perf 006")];
@@ -182,6 +267,8 @@ async function main() {
     viewport: "1440x900",
     environment: environment(),
     issues: loads[0]?.issues ?? 0,
+    mountedArticles: loads.map((item) => item.mountedArticles),
+    scroll,
     boardLoadMs: loads.map((item) => item.elapsed),
     boardLoadMedianMs,
     boardLoadBudgetMs,
@@ -201,6 +288,9 @@ async function main() {
   const dragFrameMaxMs = drags.map((item) => item.frameMaxMs).join(",");
   console.warn(
     `PERF boardLoadMedianMs=${boardLoadMedianMs} budgetMs=${boardLoadBudgetMs} status=${status} dragFrameP50Ms=${dragFrameP50Ms} dragFrameMaxMs=${dragFrameMaxMs}`,
+  );
+  console.warn(
+    `PERF scrollMountedAtTop=${scroll.mountedAtTop} scrollMountedAtEnd=${scroll.mountedAtEnd} scrollMs=${scroll.scrollMs} scrollFrameP50Ms=${scroll.frameP50Ms} scrollFrameMaxMs=${scroll.frameMaxMs}`,
   );
   if (!withinBudget) {
     console.warn(

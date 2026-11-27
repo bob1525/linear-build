@@ -10,7 +10,7 @@ Northstar is a lightweight issue tracker for product teams. It covers the everyd
 - Multiple projects, with the last opened project remembered across visits.
 - Issues with a title, Markdown description, status, priority, assignee, due date, and labels.
 - Status workflow: Backlog, Todo, In Progress, and Done.
-- Kanban board with drag-and-drop between columns, plus a list view with inline status changes.
+- Kanban board with drag-and-drop between columns, plus a list view with inline status changes. A column of 10 or more cards mounts the visible slice, the card being dragged, and cards just moved. Shorter columns stay fully mounted.
 - Issue page with rendered Markdown (including tables), comments, and an activity log of who changed what and when.
 - Relations on an issue: blocks, blocked by, and related to, plus one level of sub-issues. Blocking issues are marked on the board and the list. A blocking cycle is rejected.
 - Saved views store the current filters, sort, and Board or List choice. Each person has their own views, can rename or delete them, and can mark one as the default for a project.
@@ -200,6 +200,7 @@ Hardening round:
 - [KEYBOARD_FLAKE_FIX.md](KEYBOARD_FLAKE_FIX.md) waits for the shortcut listener before `login()` returns.
 - [AUTH_LIMITS.md](AUTH_LIMITS.md) stores those rate limits in SQLite and ignores forwarded addresses unless `TRUST_PROXY=1`.
 - [MIGRATIONS.md](MIGRATIONS.md) is the versioned schema history and the upgrade steps for an older SQLite file.
+- [BOARD_VIRTUALIZATION.md](BOARD_VIRTUALIZATION.md) windows long board columns and records the 500-issue measurement.
 - [MERGE_READINESS.md](MERGE_READINESS.md) names the checks to require and the steps for merging PR #1.
 
 Earlier notes: [CI_SETUP.md](CI_SETUP.md), [SCREENSHOTS_UPDATE.md](SCREENSHOTS_UPDATE.md), [PERF_AUTOMATION.md](PERF_AUTOMATION.md), [MOBILE_VERIFICATION.md](MOBILE_VERIFICATION.md), [FINAL_ROUND_AUDIT.md](FINAL_ROUND_AUDIT.md), [PERFORMANCE.md](PERFORMANCE.md), [DRAG_ROOT_CAUSE.md](DRAG_ROOT_CAUSE.md), [RELATION_IMPLEMENTATION.md](RELATION_IMPLEMENTATION.md), [SAVED_VIEWS.md](SAVED_VIEWS.md), [BATCH_OPERATIONS.md](BATCH_OPERATIONS.md), [EDGE_CASES.md](EDGE_CASES.md), and [TEST_PASS.md](TEST_PASS.md).

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DndContext, DragOverlay, PointerSensor, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { updateIssueAction } from "@/lib/actions/issues";
 import { STATUSES, isStatus, statusLabel, type Status } from "@/lib/constants";
 import { groupByStatus } from "@/lib/issue-view";
 import type { IssueSort } from "@/lib/view-state";
+import { columnWindow } from "@/lib/column-window";
 import { kanbanCollision } from "@/lib/kanban-collision";
 import type { IssueDTO } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -32,6 +33,7 @@ export function Board({
   const router = useRouter();
   const [items, setItems] = useState(issues);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<{ issueId: string; status: Status; actorName: string | null } | null>(null);
   const [overwritePending, setOverwritePending] = useState(false);
@@ -114,6 +116,7 @@ export function Board({
     const ticket = ++ticketRef.current;
     const previous = current.status;
     pendingRef.current.set(issueId, { status: nextStatus, previous, ticket });
+    setPinnedIds((currentIds) => [...currentIds.filter((id) => id !== issueId), issueId].slice(-8));
     const nextItems = itemsRef.current.map((issue) => (issue.id === issueId ? { ...issue, status: nextStatus } : issue));
     itemsRef.current = nextItems;
     setItems(nextItems);
@@ -178,6 +181,8 @@ export function Board({
               projectKey={projectKey}
               selectedIds={selectedIds}
               onSelect={onSelect}
+              activeId={activeId}
+              pinnedIds={pinnedIds}
             />
           ))}
         </div>
@@ -211,14 +216,71 @@ function Column({
   projectKey,
   selectedIds,
   onSelect,
+  activeId,
+  pinnedIds,
 }: {
   status: Status;
   issues: IssueDTO[];
   projectKey: string;
   selectedIds: string[];
   onSelect?: (id: string, mods: { shift: boolean; meta: boolean }) => void;
+  activeId: string | null;
+  pinnedIds: string[];
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewport, setViewport] = useState(0);
+  const [heights, setHeights] = useState<Record<string, number>>({});
+
+  useLayoutEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    let frame = 0;
+    const sync = () => {
+      frame = 0;
+      setViewport((current) => (current === el.clientHeight ? current : el.clientHeight));
+      setScrollTop((current) => (current === el.scrollTop ? current : el.scrollTop));
+    };
+    const schedule = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(sync);
+    };
+    sync();
+    el.addEventListener("scroll", schedule, { passive: true });
+    const observer = new ResizeObserver(schedule);
+    observer.observe(el);
+    return () => {
+      el.removeEventListener("scroll", schedule);
+      observer.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  function measure(id: string, node: HTMLDivElement | null) {
+    if (!node) return;
+    const height = node.offsetHeight;
+    if (height <= 0) return;
+    setHeights((current) => {
+      const previous = current[id];
+      if (previous !== undefined && Math.abs(previous - height) < 1) return current;
+      return { ...current, [id]: height };
+    });
+  }
+
+  const pinIndexes: number[] = [];
+  for (const id of activeId ? [...pinnedIds, activeId] : pinnedIds) {
+    const index = issues.findIndex((issue) => issue.id === id);
+    if (index >= 0) pinIndexes.push(index);
+  }
+  const layout = columnWindow({
+    count: issues.length,
+    scrollTop,
+    viewport,
+    heights: issues.map((issue) => heights[issue.id]),
+    pinIndexes,
+  });
+
   return (
     <section
       ref={setNodeRef}
@@ -234,22 +296,33 @@ function Column({
         <h2 className="text-[13px] font-medium">{statusLabel(status)}</h2>
         <span className="text-[12px] tabular-nums text-ink-faint">{issues.length}</span>
       </header>
-      <div data-testid={`column-scroll-${status}`} data-column-scroll="true" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
+      <div
+        ref={scrollerRef}
+        data-testid={`column-scroll-${status}`}
+        data-column-scroll="true"
+        data-virtualized={layout.virtualized ? "true" : "false"}
+        data-rendered-count={layout.indexes.length}
+        data-window-end={layout.end}
+        className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2"
+        style={{ overflowAnchor: "none" }}
+      >
         {isOver ? <div data-testid={`drop-slot-${status}`} className="h-1.5 shrink-0 rounded-full bg-accent" /> : null}
         {issues.length === 0 ? (
           <p className={cn("px-2 py-8 text-center text-[12px]", isOver ? "text-accent-hover" : "text-ink-faint")}>
             {isOver ? "Drop here" : "No issues"}
           </p>
         ) : (
-          issues.map((issue) => (
-            <IssueCard
-              key={issue.id}
-              issue={issue}
-              projectKey={projectKey}
-              selected={selectedIds.includes(issue.id)}
-              onSelect={onSelect}
-            />
-          ))
+          <div className="relative w-full shrink-0" style={{ height: layout.total }}>
+            {layout.indexes.map((index) => {
+              const issue = issues[index];
+              if (!issue) return null;
+              return (
+                <div key={issue.id} ref={(node) => measure(issue.id, node)} className="absolute inset-x-0" style={{ top: layout.offsets[index] }}>
+                  <IssueCard issue={issue} projectKey={projectKey} selected={selectedIds.includes(issue.id)} onSelect={onSelect} />
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </section>

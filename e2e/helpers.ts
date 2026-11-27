@@ -36,7 +36,31 @@ export async function scrollBoard(page: Page, left: number | "end") {
   return scrolled;
 }
 
+async function paint(page: Page) {
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+}
+
+export async function revealCard(page: Page, title: string) {
+  const link = page.getByRole("link", { name: title, exact: true });
+  if ((await link.count()) > 0) return;
+  const scrollers = page.locator("[data-column-scroll]");
+  const columns = await scrollers.count();
+  for (let column = 0; column < columns; column += 1) {
+    const scroller = scrollers.nth(column);
+    const max = await scroller.evaluate((node) => Math.max(0, (node as HTMLElement).scrollHeight - (node as HTMLElement).clientHeight));
+    const step = await scroller.evaluate((node) => Math.max(80, Math.floor((node as HTMLElement).clientHeight * 0.55)));
+    for (let top = 0; top <= max; top += step) {
+      await scroller.evaluate((node, value) => {
+        (node as HTMLElement).scrollTop = value;
+      }, top);
+      await paint(page);
+      if ((await link.count()) > 0) return;
+    }
+  }
+}
+
 export async function dragCard(page: Page, title: string, status: string, yRatio = 0.42, beforeRelease?: () => Promise<void>) {
+  await revealCard(page, title);
   const card = page.locator("article").filter({ has: page.getByRole("link", { name: title, exact: true }) });
   const handle = card.getByRole("button", { name: /^Drag / });
   // offsetTop is relative to the body (no positioned ancestor), so it cannot be used as scrollTop.
