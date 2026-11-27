@@ -102,13 +102,13 @@ npm run db:setup
 npm run dev
 ```
 
-Open http://localhost:3000. `db:setup` creates `prisma/dev.db` and loads the demo workspace. `npm install` also generates the Prisma client.
+Open http://localhost:3000. `db:setup` applies `prisma/migrations` and loads the demo workspace into `prisma/dev.db`. On a file created earlier with `db push`, it records that history and applies any missing migration, including `RateLimitEvent`, then reseeds. `npm install` also generates the Prisma client.
 
 Useful database commands:
 
 ```bash
 npm run db:generate   # regenerate the Prisma client
-npm run db:push       # apply schema changes to the SQLite file
+npm run db:migrate    # apply versioned migrations without reseeding
 npm run db:seed       # replace the current database with demo data
 ```
 
@@ -157,8 +157,8 @@ Northstar is a Next.js server plus one SQLite file. Run it as a single long-live
 
 - One process owns the file. Do not run two copies of `next start`, and do not put a load balancer in front of several replicas that write the same file. SQLite is not a multi-replica writer.
 - The file has to be on a persistent disk. Replacing a container that has no volume throws the database away.
-- This repo applies the schema with `prisma db push`. There is no migration history. Changing the schema on a live file is a manual `npx prisma db push` against that file, with a backup first.
-- Copy the file for a backup while the process is stopped. A copy taken during writes can be incomplete.
+- Schema changes are versioned in `prisma/migrations`. `npm run db:migrate` applies them. A file created with `db push` and no `_prisma_migrations` table is baselined when its Northstar tables are already present: the init migration is marked applied, and `RateLimitEvent` is created only if that table is missing. A file that is missing earlier tables is left alone. Details are in `MIGRATIONS.md`.
+- Copy the file for a backup while the process is stopped, before migrating a database that has real rows. A copy taken during writes can be incomplete.
 
 ### One Node process
 
@@ -168,7 +168,7 @@ This is the deployment that matches the database.
 npm ci
 cp .env.example .env
 # Set DATABASE_URL to an absolute file on a persistent disk.
-npx prisma db push
+npm run db:migrate
 npm run build
 npm run start
 ```
@@ -181,7 +181,7 @@ Do not run `npm run db:seed` or `npm run db:setup` on the production file unless
 
 Vercel can build this Next.js app. It cannot host this SQLite file. Serverless instances do not share a writable disk, `/tmp` disappears, and each instance would see its own empty or stale database. A later request can land on a different instance and miss the write. Two instances writing one SQLite file is the case this app does not support.
 
-Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A public multi-instance deploy needs a database that accepts many connections, which means changing the Prisma datasource off SQLite. This repository does not do that. Until it does, run `next start` on one machine.
+Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A public multi-instance deploy needs a database that accepts many connections. That would mean changing the Prisma datasource off SQLite to Postgres, pointing `DATABASE_URL` at that server, and writing a new Postgres migration history. The SQL in `prisma/migrations` is SQLite and does not run on Postgres. Several app instances could then share one database, including the `RateLimitEvent` rows, through a connection pool. This repository does not add that path. SQLite stays the default. Until a Postgres history exists, run `next start` on one machine.
 
 ### Change these before the site is public
 
@@ -199,6 +199,7 @@ Hardening round:
 - [AUTH_HARDENING.md](AUTH_HARDENING.md) covers the hidden Fill demo block and the first rate limits.
 - [KEYBOARD_FLAKE_FIX.md](KEYBOARD_FLAKE_FIX.md) waits for the shortcut listener before `login()` returns.
 - [AUTH_LIMITS.md](AUTH_LIMITS.md) stores those rate limits in SQLite and ignores forwarded addresses unless `TRUST_PROXY=1`.
+- [MIGRATIONS.md](MIGRATIONS.md) is the versioned schema history and the upgrade steps for an older SQLite file.
 - [MERGE_READINESS.md](MERGE_READINESS.md) names the checks to require and the steps for merging PR #1.
 
 Earlier notes: [CI_SETUP.md](CI_SETUP.md), [SCREENSHOTS_UPDATE.md](SCREENSHOTS_UPDATE.md), [PERF_AUTOMATION.md](PERF_AUTOMATION.md), [MOBILE_VERIFICATION.md](MOBILE_VERIFICATION.md), [FINAL_ROUND_AUDIT.md](FINAL_ROUND_AUDIT.md), [PERFORMANCE.md](PERFORMANCE.md), [DRAG_ROOT_CAUSE.md](DRAG_ROOT_CAUSE.md), [RELATION_IMPLEMENTATION.md](RELATION_IMPLEMENTATION.md), [SAVED_VIEWS.md](SAVED_VIEWS.md), [BATCH_OPERATIONS.md](BATCH_OPERATIONS.md), [EDGE_CASES.md](EDGE_CASES.md), and [TEST_PASS.md](TEST_PASS.md).

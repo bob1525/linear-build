@@ -22,7 +22,7 @@ beforeAll(() => {
   directory = mkdtempSync(path.join(tmpdir(), "northstar-limits-"));
   const file = path.join(directory, "limits.db");
   databaseUrl = `file:${file}`;
-  execFileSync("npx", ["prisma", "db", "push", "--skip-generate", "--accept-data-loss"], {
+  execFileSync("npx", ["prisma", "migrate", "deploy"], {
     cwd: path.resolve(__dirname, "../.."),
     env: { ...process.env, DATABASE_URL: databaseUrl },
     stdio: "pipe",
