@@ -1,5 +1,7 @@
 # Migrations
 
+The optional Postgres history is in [POSTGRES_PATH.md](POSTGRES_PATH.md). This file is the SQLite history.
+
 The schema used to be applied only with `prisma db push`. An existing SQLite file had no migration history, so the `RateLimitEvent` table from the previous stage could not be added by `prisma migrate deploy`.
 
 ## What was done
@@ -20,7 +22,7 @@ The SQL is the output of `prisma migrate diff --from-empty --to-schema-datamodel
 
 `npm run db:setup` is that command followed by the existing seed. `db:e2e` and `db:perf` delete their own files and then use the same migrate command instead of `db push`. `npm run db:push` is still in `package.json` and still does not record history. Setup and deploy do not call it.
 
-SQLite stays the default. There is no Postgres datasource and no second migration history. The README production section says what a later port would have to change.
+SQLite stays the default. `npm run db:migrate` applies only the SQLite files in `prisma/migrations`. The Postgres schema and its own migration history are in [POSTGRES_PATH.md](POSTGRES_PATH.md).
 
 Seed still reads `DATABASE_URL`. If it is unset, `scripts/load-env.ts` reads it from `.env`, which is the file `cp .env.example .env` creates. A variable already set in the environment wins, so the e2e `file:./e2e.db` override is unchanged.
 

@@ -1,11 +1,11 @@
-import { PrismaClient } from "@prisma/client";
 import { loadDatabaseUrl } from "../scripts/load-env";
 import { DEFAULT_LABELS } from "../src/lib/constants";
+import { createPrismaClient } from "../src/lib/create-prisma";
 import { DEMO_PASSWORD, DEMO_USERS, DRAG_LAB, FIXTURES } from "../src/lib/demo-accounts";
 import { hashPassword } from "../src/lib/password";
 
 loadDatabaseUrl();
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 type Status = "backlog" | "todo" | "in_progress" | "done";
 type Priority = "none" | "low" | "medium" | "high" | "urgent";

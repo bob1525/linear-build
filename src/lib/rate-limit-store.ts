@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { Prisma, type PrismaClient } from "@prisma/client";
+import { Prisma as SqlitePrisma, type PrismaClient } from "@prisma/client";
+import { Prisma as PostgresPrisma } from "@prisma-postgres/client";
 import {
   AUTH_WINDOW_MS,
   LOGIN_FAILURE_IP_LIMIT,
@@ -21,7 +22,7 @@ export const SIGNUP_ADDRESS_BUCKET = "signup-address";
 export const PASSWORD_EMAIL_BUCKET = "password-email";
 export const PASSWORD_ADDRESS_BUCKET = "password-address";
 
-type EventStore = Pick<PrismaClient, "rateLimitEvent"> | Prisma.TransactionClient;
+type EventStore = Pick<PrismaClient, "rateLimitEvent"> | SqlitePrisma.TransactionClient;
 type Store = PrismaClient;
 type Slot = { bucket: string; key: string; limit: number };
 
@@ -58,14 +59,27 @@ async function prune(db: EventStore, bucket: string, key: string, windowMs: numb
   });
 }
 
+type SqlApi = Pick<typeof SqlitePrisma, "sql" | "join">;
+
+function sqlFor(db: Store): SqlApi {
+  // The generated client class does not satisfy instanceof. The instance
+  // records the provider that will parameterize the statement.
+  const provider = (db as { _activeProvider?: string })._activeProvider;
+  return provider === "postgresql" ? PostgresPrisma : SqlitePrisma;
+}
+
 /**
- * Insert every slot, or none, in one statement. SQLite runs that statement
- * alone, so a second caller counts the first call's rows instead of passing
- * the check before either insert lands.
+ * Insert every slot, or none, in one statement. The database runs that
+ * statement by itself, so a second caller counts the first call's rows
+ * instead of passing the check before either insert lands. The derived
+ * table is named because Postgres rejects an unnamed subquery. Fragments
+ * come from the client that executes them. The other client's fragments
+ * are bound as one value, and Postgres then rejects the statement.
  */
 async function reserveSlots(db: Store, entries: Slot[], now: number): Promise<boolean> {
   const at = new Date(now);
   const cutoff = new Date(now - AUTH_WINDOW_MS);
+  const sql = sqlFor(db);
   for (const entry of entries) {
     await db.$executeRaw`
       DELETE FROM "RateLimitEvent"
@@ -73,10 +87,10 @@ async function reserveSlots(db: Store, entries: Slot[], now: number): Promise<bo
     `;
   }
   const rows = entries.map(
-    (entry) => Prisma.sql`SELECT ${randomUUID()} AS id, ${entry.bucket} AS bucket, ${entry.key} AS key, ${at} AS at`,
+    (entry) => sql.sql`SELECT ${randomUUID()} AS id, ${entry.bucket} AS bucket, ${entry.key} AS key, ${at} AS at`,
   );
   const guards = entries.map(
-    (entry) => Prisma.sql`(
+    (entry) => sql.sql`(
       SELECT COUNT(*) FROM "RateLimitEvent"
       WHERE "bucket" = ${entry.bucket} AND "key" = ${entry.key} AND "at" > ${cutoff}
     ) < ${entry.limit}`,
@@ -84,9 +98,9 @@ async function reserveSlots(db: Store, entries: Slot[], now: number): Promise<bo
   const inserted = await db.$executeRaw`
     INSERT INTO "RateLimitEvent" ("id", "bucket", "key", "at")
     SELECT id, bucket, key, at FROM (
-      ${Prisma.join(rows, " UNION ALL ")}
-    )
-    WHERE ${Prisma.join(guards, " AND ")}
+      ${sql.join(rows, " UNION ALL ")}
+    ) AS "slots"
+    WHERE ${sql.join(guards, " AND ")}
   `;
   return inserted === entries.length;
 }

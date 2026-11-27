@@ -153,7 +153,7 @@ Northstar is a Next.js server plus one SQLite file. Run it as a single long-live
 
 | Variable | Required | What it does |
 | --- | --- | --- |
-| `DATABASE_URL` | Yes | Prisma connection string. The schema is SQLite only. A `file:` path is resolved relative to the `prisma/` directory. For a real deploy, point it at an absolute path on a persistent disk, for example `file:/var/lib/northstar/prod.db`. |
+| `DATABASE_URL` | Yes | Prisma connection string. SQLite is the default. A `file:` path is resolved relative to the `prisma/` directory. For a real deploy, point it at an absolute path on a persistent disk, for example `file:/var/lib/northstar/prod.db`. A `postgresql://` or `postgres://` URL uses the separate schema in `prisma/postgres`. See [POSTGRES_PATH.md](POSTGRES_PATH.md). |
 | `NODE_ENV` | Set by `next start` | `production` marks the `ns_session` cookie `Secure`. |
 | `TRUST_PROXY` | No | Leave unset. Forwarded address headers are ignored, and every caller shares the `local` bucket. Set to `1` only when a reverse proxy replaces `x-forwarded-for` or `x-real-ip` with the real client. Any other value, including `true`, is still ignored. |
 
@@ -187,13 +187,13 @@ Do not run `npm run db:seed` or `npm run db:setup` on the production file unless
 
 Vercel can build this Next.js app. It cannot host this SQLite file. Serverless instances do not share a writable disk, `/tmp` disappears, and each instance would see its own empty or stale database. A later request can land on a different instance and miss the write. Two instances writing one SQLite file is the case this app does not support.
 
-Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A public multi-instance deploy needs a database that accepts many connections. That would mean changing the Prisma datasource off SQLite to Postgres, pointing `DATABASE_URL` at that server, and writing a new Postgres migration history. The SQL in `prisma/migrations` is SQLite and does not run on Postgres. Several app instances could then share one database, including the `RateLimitEvent` rows, through a connection pool. This repository does not add that path. SQLite stays the default. Until a Postgres history exists, run `next start` on one machine.
+Do not deploy with `DATABASE_URL=file:./dev.db` and expect issues to stick. A public multi-instance deploy can point `DATABASE_URL` at Postgres. `npm run db:migrate:pg` applies `prisma/postgres/migrations`, a separate history from the SQLite files in `prisma/migrations`. Several app instances can then share that database, including the `RateLimitEvent` rows. The steps and the limits are in [POSTGRES_PATH.md](POSTGRES_PATH.md). SQLite stays the default, and the one-process file deploy above is unchanged.
 
 ### Change these before the site is public
 
 - The seed creates Ava Chen, Marcus Hale, Priya Nair, and Leo Park, all with the password `demo1234`. Those accounts are fixtures. On a public server, start from an empty file, or change every password and delete the accounts you do not want.
 - Do not set `NORTHSTAR_SHOW_DEMO=1`. Without it, production does not render Fill demo or the demo password.
-- Sign-in counts failed passwords: 8 per email and 40 per client address, each in a 15 minute window. A successful sign-in counts too, in its own rows: 120 per email and 400 per address in that same window. Registration counts every accepted form: 5 per email and 30 per client address. A signed-in password change counts a wrong current password the same way as a failed sign-in, 8 per email and 40 per address, in its own rows so it does not lock sign-in. A correct password change does not consume a slot. Each count is a row in `RateLimitEvent`. The count and the insert are one SQLite statement, so a parallel burst cannot store more rows than the limit. A restart keeps the rows, and another process that opens that file sees them. With `TRUST_PROXY` unset, the address is `local` even if the request sends `x-forwarded-for` or `x-real-ip`. With `TRUST_PROXY=1`, the address is the first forwarded hop, then `x-real-ip`, then `local`. There is still no email verification and no forgot-password flow. Those need a mail provider. Passwords are bcrypt with 10 rounds. The signed-in form is at `/account`.
+- Sign-in counts failed passwords: 8 per email and 40 per client address, each in a 15 minute window. A successful sign-in counts too, in its own rows: 120 per email and 400 per address in that same window. Registration counts every accepted form: 5 per email and 30 per client address. A signed-in password change counts a wrong current password the same way as a failed sign-in, 8 per email and 40 per address, in its own rows so it does not lock sign-in. A correct password change does not consume a slot. Each count is a row in `RateLimitEvent`. The count and the insert are one statement, so a parallel burst cannot store more rows than the limit. A restart keeps the rows, and another process that opens that file sees them. With `TRUST_PROXY` unset, the address is `local` even if the request sends `x-forwarded-for` or `x-real-ip`. With `TRUST_PROXY=1`, the address is the first forwarded hop, then `x-real-ip`, then `local`. There is still no email verification and no forgot-password flow. Those need a mail provider. Passwords are bcrypt with 10 rounds. The signed-in form is at `/account`.
 
 ## Documentation
 
@@ -202,6 +202,7 @@ Continued upgrade round:
 - [KEYBOARD_MOVE.md](KEYBOARD_MOVE.md) moves a focused board card to the neighboring column from the keyboard.
 - [SCREENSHOTS_REFRESH.md](SCREENSHOTS_REFRESH.md) recaptures the production sign-in page and adds the change-password page.
 - [AUTH_LIMITS_TIGHTEN.md](AUTH_LIMITS_TIGHTEN.md) counts successful sign-ins and closes the parallel check-then-insert gap.
+- [POSTGRES_PATH.md](POSTGRES_PATH.md) is the optional Postgres connection. SQLite stays the default.
 
 Follow-up round:
 
