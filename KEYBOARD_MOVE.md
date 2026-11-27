@@ -36,7 +36,11 @@ The drag specs in that full run passed on the first attempt, including the empty
 
 ## Problems found
 
-The first end-to-end run of the new spec failed before it checked the move. It expected the seeded “Relay short todo” card to still be in Todo, and the edge test expected “Relay backlog 01” to still be in Backlog. Those cards had already been dragged by `e2e/drag.spec.ts` earlier in the same run. The move status for that edge press was “RLY-1 moved to Backlog”, which is a card that was no longer in Backlog. The assertions now use a card the test inserts. No product code changed for that failure. The rerun of the spec passed (2.0 seconds and 503 ms), and the full run above passed.
+The first end-to-end run of the new spec failed before it checked the move. It expected the seeded “Relay short todo” card to still be in Todo, and the edge test expected “Relay backlog 01” to still be in Backlog. Those cards had already been dragged by `e2e/drag.spec.ts` earlier in the same run. The move status for that edge press was “RLY-1 moved to Backlog”, which is a card that was no longer in Backlog. The assertions now use a card the test inserts. No product code changed for that failure. The rerun of the spec passed (2.0 seconds and 503 ms), and the full local run above passed.
+
+Push [46013119601](https://github.com/bob1525/linear-build/actions/runs/46013119601) on `62438c1` then reported the move test as flaky. The first attempt failed at the reload: the card was focused in In Progress and the live status already said it had moved, then `column-in_progress` did not contain it after reload (10.7 seconds). Retry 1 passed (2.6 seconds). The pull request run of the same commit passed on the first attempt (1.8 seconds). The move updates the board immediately and saves in the background, the same way a drop does. The reload started before that save finished, so the database still had Todo. The test now waits for the successful save response before it reloads, matching `e2e/drag.spec.ts`. That wait is the fix. The green retry is not treated as a pass.
+
+After the wait, the spec passed three times on its own (2.3 seconds, 2.4 seconds, and 2.0 seconds). A full Playwright run then passed 58 tests. The move test took 1.6 seconds and the Backlog edge took 773 ms. The conflict test took 2.2 seconds and the keyboard test took 402 ms. The board arrow-key test took 842 ms. No flaky test.
 
 ## Remaining limitations
 

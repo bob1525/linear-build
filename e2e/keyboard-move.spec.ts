@@ -1,8 +1,24 @@
 import path from "node:path";
 import { PrismaClient } from "@prisma/client";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { DRAG_LAB, PRIMARY_DEMO } from "../src/lib/demo-accounts";
 import { login } from "./helpers";
+
+function waitForSave(page: Page) {
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      page.off("response", onResponse);
+      reject(new Error("The status save did not finish"));
+    }, 15_000);
+    function onResponse(response: { ok: () => boolean; request: () => { method: () => string } }) {
+      if (response.request().method() !== "POST" || !response.ok()) return;
+      clearTimeout(timer);
+      page.off("response", onResponse);
+      resolve();
+    }
+    page.on("response", onResponse);
+  });
+}
 
 function e2eDb() {
   return new PrismaClient({
@@ -59,12 +75,14 @@ test("alt and the arrow keys move a focused card between columns", async ({ page
 
     await page.keyboard.press("ArrowRight");
     await expect(link).toBeFocused();
+    const saved = waitForSave(page);
     await page.keyboard.press("Alt+ArrowRight");
     const moved = page.getByTestId("column-in_progress").getByRole("link", { name: title, exact: true });
     await expect(moved).toBeFocused();
     await expect(page.getByTestId("column-todo").getByRole("link", { name: title, exact: true })).toHaveCount(0);
     await expect(page.getByTestId("column-in_progress")).toContainText("In Progress");
     await expect(page.getByTestId("board-move-status")).toContainText("moved to In Progress");
+    await saved;
 
     await page.reload();
     await expect(page.getByTestId("column-in_progress").getByRole("link", { name: title, exact: true })).toBeVisible();
